@@ -51,12 +51,18 @@ export function useProperties() {
   const addProperty = async (property: Omit<Property, 'id' | 'createdAt' | 'updatedAt'>) => {
     if (!user) return;
 
-    // Filtrar fotos base64 (muy grandes para Firestore) y quedarnos solo con URLs
-    const photos = (property.photos || []).filter(p => !p.startsWith('data:'));
+    // Si son URLs (no base64), no hay límite. Si son base64, limitar a 4.
+    const allPhotos = property.photos || [];
+    const hasBase64 = allPhotos.some(p => p.startsWith('data:'));
+    const photos = hasBase64 ? allPhotos.slice(0, 4) : allPhotos;
+
+    // Filtrar valores undefined (Firestore no los acepta)
+    const cleanProperty = Object.fromEntries(
+      Object.entries({ ...property, photos }).filter(([, v]) => v !== undefined)
+    );
 
     await addDoc(collection(db, `users/${user.uid}/properties`), {
-      ...property,
-      photos,
+      ...cleanProperty,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     });

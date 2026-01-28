@@ -52,9 +52,9 @@ export function CallHistory({ calls, onAddCall, onDeleteCall }: CallHistoryProps
   }));
 
   return (
-    <div className="bg-white rounded-xl border p-4">
+    <div className="bg-[var(--color-bg)] rounded-lg border border-[var(--color-border)] p-4">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="font-semibold flex items-center gap-2">
+        <h3 className="font-medium text-[var(--color-text)] flex items-center gap-2" style={{ fontFamily: 'var(--font-serif)' }}>
           <Phone size={18} />
           Historial de llamadas
         </h3>
@@ -67,7 +67,7 @@ export function CallHistory({ calls, onAddCall, onDeleteCall }: CallHistoryProps
       </div>
 
       {showForm && (
-        <form onSubmit={handleSubmit} className="mb-4 p-4 bg-gray-50 rounded-lg space-y-3">
+        <form onSubmit={handleSubmit} className="mb-4 p-4 bg-[var(--color-bg-secondary)] rounded-lg space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <Input
               label="Fecha y hora"
@@ -107,29 +107,29 @@ export function CallHistory({ calls, onAddCall, onDeleteCall }: CallHistoryProps
       )}
 
       {calls.length === 0 ? (
-        <p className="text-gray-500 text-sm">No hay llamadas registradas</p>
+        <p className="text-[var(--color-text-tertiary)] text-sm">No hay llamadas registradas</p>
       ) : (
         <div className="space-y-3">
           {calls.map((call) => (
             <div
               key={call.id}
-              className="flex items-start justify-between p-3 bg-gray-50 rounded-lg"
+              className="flex items-start justify-between p-3 bg-[var(--color-bg-secondary)] rounded-lg"
             >
               <div>
-                <div className="text-sm font-medium">
+                <div className="text-sm font-medium text-[var(--color-text)]">
                   {CALL_RESULT_LABELS[call.result]}
                 </div>
-                <div className="text-xs text-gray-500">
+                <div className="text-xs text-[var(--color-text-tertiary)]">
                   {formatDateTime(call.date)}
                   {call.duration > 0 && ` · ${call.duration} min`}
                 </div>
                 {call.notes && (
-                  <p className="text-sm text-gray-600 mt-1">{call.notes}</p>
+                  <p className="text-sm text-[var(--color-text-secondary)] mt-1">{call.notes}</p>
                 )}
               </div>
               <button
                 onClick={() => onDeleteCall(call.id)}
-                className="p-1 text-gray-400 hover:text-red-500"
+                className="p-1 text-[var(--color-text-tertiary)] hover:text-[var(--color-discarded-text)]"
               >
                 <Trash2 size={16} />
               </button>

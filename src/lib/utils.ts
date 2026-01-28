@@ -33,10 +33,21 @@ export function calculatePricePerMeter(price: number, squareMeters: number): num
   return Math.round(price / squareMeters);
 }
 
-// Proxy para imágenes de Idealista (evita bloqueo por hotlink)
+// Devuelve la URL de la imagen, usando proxy para URLs de Idealista
 export function getImageUrl(url: string): string {
-  if (url.includes('idealista.com')) {
-    return `http://localhost:5001/api/image-proxy?url=${encodeURIComponent(url)}`;
+  // Si ya es base64 o data URL, devolver tal cual
+  if (url.startsWith('data:')) {
+    return url;
   }
+
+  // Si es una URL de Idealista, usar el proxy para evitar CORS
+  if (url.includes('idealista.com')) {
+    const apiUrl = import.meta.env.DEV
+      ? 'http://localhost:5001'
+      : (import.meta.env.VITE_API_URL || '');
+    return `${apiUrl}/api/image-proxy?url=${encodeURIComponent(url)}`;
+  }
+
+  // Para otras URLs (Firebase Storage, etc.), devolver tal cual
   return url;
 }

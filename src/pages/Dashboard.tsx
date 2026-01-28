@@ -1,11 +1,12 @@
 import { useState, useMemo } from 'react';
-import { Plus, Search, FileUp } from 'lucide-react';
+import { Plus, Search, FileUp, Target } from 'lucide-react';
 import { useProperties } from '../hooks/useProperties';
 import { PropertyCard } from '../components/PropertyCard';
 import { PropertyForm } from '../components/PropertyForm';
 import { ImportModal } from '../components/ImportModal';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
+import { evaluateProperty } from '../lib/requirements';
 import type { PropertyStatus, Property } from '../types';
 import { STATUS_LABELS } from '../types';
 
@@ -18,17 +19,19 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 export function Dashboard() {
-  const { properties, loading, addProperty } = useProperties();
+  const { properties, loading, addProperty, deleteProperty } = useProperties();
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<PropertyStatus | 'all'>('all');
-  const [sortBy, setSortBy] = useState<'date' | 'price' | 'sqm'>('date');
+  const [requirementsFilter, setRequirementsFilter] = useState<'all' | 'passes' | '80+' | '60+'>('all');
+  const [sortBy, setSortBy] = useState<'date' | 'price' | 'sqm' | 'score'>('date');
 
   const sortOptions = [
     { value: 'date', label: 'Recientes' },
     { value: 'price', label: 'Precio' },
     { value: 'sqm', label: 'Superficie' },
+    { value: 'score', label: 'Puntuación' },
   ];
 
   const filteredProperties = useMemo(() => {
@@ -49,19 +52,38 @@ export function Dashboard() {
       result = result.filter((p) => p.status === statusFilter);
     }
 
+    // Requirements filter
+    if (requirementsFilter !== 'all') {
+      result = result.filter((p) => {
+        const evaluation = evaluateProperty(p);
+        switch (requirementsFilter) {
+          case 'passes':
+            return evaluation.passesMinimum;
+          case '80+':
+            return evaluation.score >= 80;
+          case '60+':
+            return evaluation.score >= 60;
+          default:
+            return true;
+        }
+      });
+    }
+
     result = [...result].sort((a, b) => {
       switch (sortBy) {
         case 'price':
           return a.price - b.price;
         case 'sqm':
           return (b.builtSquareMeters || b.squareMeters) - (a.builtSquareMeters || a.squareMeters);
+        case 'score':
+          return evaluateProperty(b).score - evaluateProperty(a).score;
         default:
           return b.createdAt.getTime() - a.createdAt.getTime();
       }
     });
 
     return result;
-  }, [properties, search, statusFilter, sortBy]);
+  }, [properties, search, statusFilter, requirementsFilter, sortBy]);
 
   const handleAddProperty = async (data: Parameters<typeof addProperty>[0]) => {
     await addProperty(data);
@@ -178,6 +200,42 @@ export function Dashboard() {
               {label} ({statusCounts[status] || 0})
             </button>
           ))}
+
+          {/* Separator */}
+          <div className="w-px h-6 bg-[var(--color-border)] mx-2" />
+
+          {/* Requirements filter */}
+          <button
+            onClick={() => setRequirementsFilter(requirementsFilter === 'passes' ? 'all' : 'passes')}
+            className={`px-3 py-1 text-sm rounded-md border transition-all flex items-center gap-1.5 ${
+              requirementsFilter === 'passes'
+                ? 'bg-[var(--color-visited)] text-[var(--color-visited-text)] border-[var(--color-visited)]'
+                : 'bg-transparent text-[var(--color-text-secondary)] border-[var(--color-border)] hover:border-[var(--color-border-strong)]'
+            }`}
+          >
+            <Target size={14} />
+            Cumple requisitos
+          </button>
+          <button
+            onClick={() => setRequirementsFilter(requirementsFilter === '80+' ? 'all' : '80+')}
+            className={`px-3 py-1 text-sm rounded-md border transition-all ${
+              requirementsFilter === '80+'
+                ? 'bg-[var(--color-visited)] text-[var(--color-visited-text)] border-[var(--color-visited)]'
+                : 'bg-transparent text-[var(--color-text-secondary)] border-[var(--color-border)] hover:border-[var(--color-border-strong)]'
+            }`}
+          >
+            80%+
+          </button>
+          <button
+            onClick={() => setRequirementsFilter(requirementsFilter === '60+' ? 'all' : '60+')}
+            className={`px-3 py-1 text-sm rounded-md border transition-all ${
+              requirementsFilter === '60+'
+                ? 'bg-[var(--color-favorite)] text-[var(--color-favorite-text)] border-[var(--color-favorite)]'
+                : 'bg-transparent text-[var(--color-text-secondary)] border-[var(--color-border)] hover:border-[var(--color-border-strong)]'
+            }`}
+          >
+            60%+
+          </button>
         </div>
       </div>
 
@@ -202,8 +260,20 @@ export function Dashboard() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 stagger-children">
           {filteredProperties.map((property) => (
-            <PropertyCard key={property.id} property={property} />
+            <PropertyCard
+              key={property.id}
+              property={property}
+              onDelete={deleteProperty}
+            />
           ))}
+          {/* Ghost card */}
+          <button
+            onClick={() => setShowImport(true)}
+            className="rounded-lg border-2 border-dashed border-[var(--color-border)] hover:border-[var(--color-text-tertiary)] transition-colors flex flex-col items-center justify-center min-h-[300px] text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)]"
+          >
+            <Plus size={32} strokeWidth={1} className="mb-2" />
+            <span className="text-sm">Añadir propiedad</span>
+          </button>
         </div>
       )}
 

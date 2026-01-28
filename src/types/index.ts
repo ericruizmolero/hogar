@@ -5,6 +5,7 @@ export type CallResult = 'no_answer' | 'scheduled_visit' | 'info_received' | 'no
 export interface Contact {
   name: string;
   phone: string;
+  phone2?: string;
   email: string;
   agency: string;
 }
@@ -15,6 +16,8 @@ export interface Property {
   title: string;
   zone: string;
   address: string;
+  latitude?: number;
+  longitude?: number;
   price: number;
   pricePerMeter: number;
   builtSquareMeters: number;
@@ -36,6 +39,7 @@ export interface Property {
   contact: Contact;
   status: PropertyStatus;
   notes: string;
+  callNotes?: string;
   createdAt: Date;
   updatedAt: Date;
 }

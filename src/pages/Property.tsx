@@ -19,6 +19,12 @@ import {
   Calendar,
   Compass,
   Square,
+  LocateFixed,
+  Check,
+  X,
+  FileCode,
+  Loader2,
+  ClipboardPaste,
 } from 'lucide-react';
 import { useProperties } from '../hooks/useProperties';
 import { useCalls } from '../hooks/useCalls';
@@ -30,6 +36,11 @@ import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
 import { Input } from '../components/ui/Input';
 import { formatPrice, formatDate } from '../lib/utils';
+import { evaluateProperty, getScoreColor, getScoreBgColor } from '../lib/requirements';
+import { LocationPicker } from '../components/LocationPicker';
+import { MortgageCalculator } from '../components/MortgageCalculator';
+import { parseIdealistaHtml } from '../lib/idealista-parser';
+import { geocodeProperty } from '../utils/geocode';
 import type { PropertyStatus } from '../types';
 import { STATUS_LABELS } from '../types';
 
@@ -55,6 +66,12 @@ export function Property() {
     date: '',
     message: '',
   });
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const [showCompleteForm, setShowCompleteForm] = useState(false);
+  const [completeHtml, setCompleteHtml] = useState('');
+  const [completePhone, setCompletePhone] = useState('');
+  const [completing, setCompleting] = useState(false);
+  const [completeError, setCompleteError] = useState('');
 
   const property = properties.find((p) => p.id === id);
 
@@ -97,7 +114,100 @@ export function Property() {
     setReminderData({ date: '', message: '' });
   };
 
+  const handleSaveLocation = async (lat: number, lng: number) => {
+    await updateProperty(property.id, {
+      latitude: lat,
+      longitude: lng,
+    });
+  };
+
+  const handleCompleteWithHtml = async () => {
+    if (!completeHtml.trim()) {
+      setCompleteError('Pega el HTML de la página');
+      return;
+    }
+
+    setCompleting(true);
+    setCompleteError('');
+
+    try {
+      // Parsear HTML
+      const parsed = parseIdealistaHtml(completeHtml, property.url || '');
+
+      // Añadir teléfono manual si se proporcionó
+      if (completePhone.trim()) {
+        parsed.contact = {
+          ...parsed.contact,
+          phone: completePhone.trim().replace(/\s/g, ''),
+          name: parsed.contact?.name || '',
+          email: parsed.contact?.email || '',
+          agency: parsed.contact?.agency || '',
+        };
+      }
+
+      if (!parsed.price || parsed.price === 0) {
+        setCompleteError('No se pudo extraer el precio. Asegúrate de copiar el HTML completo.');
+        setCompleting(false);
+        return;
+      }
+
+      // Guardar URLs de fotos directamente (se cargan via proxy)
+      const photos = parsed.photos || [];
+
+      // Geocodificar
+      const coords = await geocodeProperty(
+        parsed.address || '',
+        parsed.title || '',
+        parsed.zone || '',
+        parsed.notes || ''
+      );
+
+      // Actualizar propiedad
+      await updateProperty(property.id, {
+        title: parsed.title || property.title,
+        address: parsed.address || property.address,
+        zone: parsed.zone || property.zone,
+        price: parsed.price,
+        pricePerMeter: parsed.pricePerMeter || 0,
+        squareMeters: parsed.squareMeters || 0,
+        builtSquareMeters: parsed.builtSquareMeters || 0,
+        usableSquareMeters: parsed.usableSquareMeters || 0,
+        rooms: parsed.rooms || 0,
+        bathrooms: parsed.bathrooms || 0,
+        floor: parsed.floor || '',
+        terrace: parsed.terrace || false,
+        balcony: parsed.balcony || false,
+        elevator: parsed.elevator || false,
+        parkingIncluded: parsed.parkingIncluded || false,
+        parkingOptional: parsed.parkingOptional || false,
+        needsRenovation: parsed.needsRenovation || false,
+        yearBuilt: parsed.yearBuilt || 0,
+        orientation: parsed.orientation || '',
+        daysPublished: parsed.daysPublished || 0,
+        photos: photos.length > 0 ? photos : property.photos,
+        contact: parsed.contact || property.contact,
+        latitude: coords?.lat || property.latitude,
+        longitude: coords?.lon || property.longitude,
+        notes: property.notes?.replace('⚠️ Importado rápido desde móvil - completar datos desde ordenador', '').trim() || '',
+      });
+
+      setShowCompleteForm(false);
+      setCompleteHtml('');
+      setCompletePhone('');
+    } catch (err) {
+      setCompleteError('Error al procesar: ' + (err instanceof Error ? err.message : 'desconocido'));
+    } finally {
+      setCompleting(false);
+    }
+  };
+
+  // Detectar si es una propiedad incompleta (importada rápido)
+  const isIncomplete = property ? (property.price === 0 || property.notes?.includes('Importado rápido')) : false;
+
   const pricePerMeter = property.pricePerMeter || (property.squareMeters > 0 ? Math.round(property.price / property.squareMeters) : 0);
+
+  // Evaluate property against requirements
+  const evaluation = evaluateProperty(property);
 
   return (
     <div className="max-w-3xl mx-auto px-6 py-8 animate-in">
@@ -109,6 +219,24 @@ export function Property() {
         <ArrowLeft size={16} strokeWidth={1.5} />
         Volver
       </button>
+
+      {/* Incomplete property banner */}
+      {isIncomplete && (
+        <div className="mb-6 p-4 bg-[var(--color-favorite)] rounded-lg">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="font-medium text-[var(--color-favorite-text)]">Propiedad incompleta</p>
+              <p className="text-sm text-[var(--color-favorite-text)] opacity-80">
+                Pega el HTML desde el ordenador para completar los datos
+              </p>
+            </div>
+            <Button size="sm" onClick={() => setShowCompleteForm(true)}>
+              <FileCode size={14} className="mr-1.5" />
+              Completar
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Main content */}
       <div className="space-y-6">
@@ -140,9 +268,21 @@ export function Property() {
             <h2 className="text-lg text-[var(--color-text)] mb-2">{property.title}</h2>
           )}
 
-          <div className="flex items-center gap-1.5 text-[var(--color-text-secondary)]">
+          <div className="flex items-center gap-2 text-[var(--color-text-secondary)]">
             <MapPin size={16} strokeWidth={1.5} />
             <span>{property.zone || property.address}</span>
+            {property.latitude && property.longitude && (
+              <span className="text-xs text-[var(--color-visited-text)] bg-[var(--color-visited)] px-1.5 py-0.5 rounded">
+                En mapa
+              </span>
+            )}
+            <button
+              onClick={() => setShowLocationPicker(true)}
+              className="flex items-center gap-1 text-xs text-[var(--color-accent)] hover:underline"
+            >
+              <LocateFixed size={12} />
+              {property.latitude ? 'Reubicar' : 'Ubicar en mapa'}
+            </button>
           </div>
         </div>
 
@@ -243,6 +383,54 @@ export function Property() {
           )}
         </div>
 
+        {/* Requirements score */}
+        <div className="pt-4 border-t border-[var(--color-border)]">
+          <div className="flex items-center justify-between mb-3">
+            <h3
+              className="font-medium text-[var(--color-text)]"
+              style={{ fontFamily: 'var(--font-serif)' }}
+            >
+              Requisitos
+            </h3>
+            <div
+              className="px-3 py-1 rounded-md text-sm font-bold"
+              style={{
+                background: getScoreBgColor(evaluation.score),
+                color: getScoreColor(evaluation.score),
+              }}
+            >
+              {evaluation.score}% {evaluation.passesMinimum ? '✓' : ''}
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {evaluation.results.map((result) => (
+              <div
+                key={result.key}
+                className={`flex items-center gap-2 text-sm p-2 rounded ${
+                  result.met
+                    ? 'bg-[var(--color-visited)] text-[var(--color-visited-text)]'
+                    : result.critical
+                    ? 'bg-[var(--color-discarded)] text-[var(--color-discarded-text)]'
+                    : 'bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)]'
+                }`}
+              >
+                {result.met ? (
+                  <Check size={14} className="flex-shrink-0" />
+                ) : (
+                  <X size={14} className="flex-shrink-0" />
+                )}
+                <span className="flex-1 text-xs">{result.label}</span>
+                <span className="text-xs opacity-75">{result.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Mortgage Calculator */}
+        <div className="pt-4 border-t border-[var(--color-border)]">
+          <MortgageCalculator propertyPrice={property.price} needsRenovation={property.needsRenovation} />
+        </div>
+
         {/* Status change */}
         <div className="pt-4 border-t border-[var(--color-border)]">
           <p className="text-xs text-[var(--color-text-tertiary)] mb-2">Cambiar estado</p>
@@ -340,6 +528,10 @@ export function Property() {
             <Edit size={14} strokeWidth={1.5} className="mr-1.5" />
             Editar
           </Button>
+          <Button size="sm" variant="secondary" onClick={() => setShowCompleteForm(true)}>
+            <FileCode size={14} strokeWidth={1.5} className="mr-1.5" />
+            Actualizar con HTML
+          </Button>
           <Button size="sm" variant="secondary" onClick={() => setShowReminderForm(true)}>
             <Bell size={14} strokeWidth={1.5} className="mr-1.5" />
             Recordatorio
@@ -413,6 +605,107 @@ export function Property() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      <LocationPicker
+        isOpen={showLocationPicker}
+        onClose={() => setShowLocationPicker(false)}
+        onSave={handleSaveLocation}
+        initialLat={property.latitude}
+        initialLng={property.longitude}
+        address={property.address}
+        title={property.title}
+        zone={property.zone}
+        notes={property.notes}
+      />
+
+      <Modal
+        isOpen={showCompleteForm}
+        onClose={() => {
+          setShowCompleteForm(false);
+          setCompleteHtml('');
+          setCompletePhone('');
+          setCompleteError('');
+        }}
+        title="Actualizar datos con HTML"
+      >
+        <div className="space-y-4">
+          <div className="text-sm text-[var(--color-text-secondary)] space-y-2">
+            <p>Actualiza los datos y fotos de esta propiedad pegando el HTML de Idealista:</p>
+            <ol className="list-decimal list-inside text-xs space-y-1 opacity-80">
+              <li>Abre el piso en Idealista</li>
+              <li>Haz clic en <strong>"Ver teléfono"</strong> para revelar el contacto</li>
+              <li>Clic derecho → <strong>Inspeccionar</strong> (F12)</li>
+              <li>Clic derecho en <code className="bg-[var(--color-bg-secondary)] px-1 rounded">&lt;html&gt;</code> → Copiar elemento</li>
+              <li>Pega aquí</li>
+            </ol>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
+              Teléfono <span className="font-normal opacity-70">(opcional)</span>
+            </label>
+            <input
+              type="tel"
+              value={completePhone}
+              onChange={(e) => setCompletePhone(e.target.value)}
+              placeholder="612 345 678"
+              className="w-full px-3 py-2 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:border-[var(--color-accent)] text-sm"
+            />
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-sm font-medium text-[var(--color-text-secondary)]">
+                HTML de la página
+              </label>
+              <button
+                onClick={async () => {
+                  try {
+                    const text = await navigator.clipboard.readText();
+                    setCompleteHtml(text);
+                  } catch {
+                    setCompleteError('No se pudo acceder al portapapeles');
+                  }
+                }}
+                className="flex items-center gap-1 text-xs text-[var(--color-accent)] hover:underline"
+              >
+                <ClipboardPaste size={12} />
+                Pegar
+              </button>
+            </div>
+            <textarea
+              value={completeHtml}
+              onChange={(e) => setCompleteHtml(e.target.value)}
+              placeholder="Pega aquí el código HTML..."
+              className="w-full h-32 px-3 py-2 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:border-[var(--color-accent)] text-sm font-mono resize-none"
+              disabled={completing}
+            />
+          </div>
+
+          {completeError && (
+            <p className="text-sm text-red-500">{completeError}</p>
+          )}
+
+          <div className="flex gap-2">
+            <Button onClick={handleCompleteWithHtml} disabled={completing || !completeHtml.trim()}>
+              {completing ? (
+                <>
+                  <Loader2 size={14} className="mr-1.5 animate-spin" />
+                  Procesando...
+                </>
+              ) : (
+                <>
+                  <Check size={14} className="mr-1.5" />
+                  Completar datos
+                </>
+              )}
+            </Button>
+            <Button variant="secondary" onClick={() => setShowCompleteForm(false)}>
+              Cancelar
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

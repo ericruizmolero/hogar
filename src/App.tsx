@@ -6,6 +6,10 @@ import { Dashboard } from './pages/Dashboard';
 import { Property } from './pages/Property';
 import { Compare } from './pages/Compare';
 import { Reminders } from './pages/Reminders';
+import { MapView } from './pages/MapView';
+import { Settings } from './pages/Settings';
+import { Simulator } from './pages/Simulator';
+import { ToContact } from './pages/ToContact';
 
 function PrivateRoute() {
   const { user, loading } = useAuth();
@@ -40,7 +44,11 @@ function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/property/:id" element={<Property />} />
             <Route path="/compare" element={<Compare />} />
+            <Route path="/map" element={<MapView />} />
             <Route path="/reminders" element={<Reminders />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/simulador" element={<Simulator />} />
+            <Route path="/contactar" element={<ToContact />} />
           </Route>
         </Routes>
       </AuthProvider>
