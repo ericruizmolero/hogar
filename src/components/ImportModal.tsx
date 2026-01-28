@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FileCode, Loader2, CheckCircle, XCircle, HelpCircle, MapPin, ClipboardPaste, Link, Smartphone, Zap } from 'lucide-react';
+import { FileCode, Loader2, CheckCircle, XCircle, HelpCircle, MapPin, ClipboardPaste, Smartphone, Zap } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
 import { geocodeProperty } from '../utils/geocode';
