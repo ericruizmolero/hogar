@@ -24,15 +24,7 @@ RAPIDAPI_KEY = os.getenv('RAPIDAPI_KEY', 'c0b7375685msh3455479520e750bp1c2437jsn
 RAPIDAPI_HOST = os.getenv('RAPIDAPI_HOST', 'idealista7.p.rapidapi.com')
 
 # Configurar CORS para permitir requests desde el frontend
-# En producción, añadir tu dominio a ALLOWED_ORIGINS
-ALLOWED_ORIGINS = os.getenv('ALLOWED_ORIGINS', '').split(',') if os.getenv('ALLOWED_ORIGINS') else []
-CORS(app, origins=[
-    'http://localhost:5173',
-    'http://localhost:5174',
-    r'https://.*\.vercel\.app',
-    r'https://.*\.onrender\.com',
-    *[origin.strip() for origin in ALLOWED_ORIGINS if origin.strip()],
-], supports_credentials=True)
+CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=False)
 
 
 def download_image_as_base64(image_url):
