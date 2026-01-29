@@ -41,6 +41,7 @@ interface InmovillaData {
   foto?: string;
   ref?: string;
   cod_ofer_str?: string;
+  fechacreacion?: string;
 }
 
 function extractInmovillaJson(html: string): InmovillaData | null {
@@ -226,11 +227,9 @@ export const parseGrupoTomeHtml: PlatformParser = (html: string, providedUrl: st
   const parkingOptional = features.has('garaje opcional') || features.has('parking opcional');
 
   // --- Renovación ---
-  const conservation = (data?.nbconservacion || '').toLowerCase();
   const fullText = doc.body?.textContent?.toLowerCase() || html.toLowerCase();
   const hasFullRenovation = fullText.includes('reforma integral') || fullText.includes('reforma total');
   const hasAnyRenovation = fullText.includes('a reformar') || fullText.includes('para reformar') || fullText.includes('necesita reforma');
-  const isNew = conservation === 'nuevo' || conservation === 'a estrenar';
   const needsRenovation = hasFullRenovation
     ? ('total' as const)
     : hasAnyRenovation
