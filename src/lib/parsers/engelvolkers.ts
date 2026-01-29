@@ -164,9 +164,9 @@ function findByType(blocks: Record<string, unknown>[], type: string) {
 /** Valor numérico de un campo min/max (prefiere max). */
 const val = (mm?: EvMinMax): number => mm?.max ?? mm?.min ?? 0;
 
-/** Construye URL de uploadcare con buena resolución. */
+/** Construye URL de uploadcare con buena resolución (CDN público, no necesita proxy). */
 const uploadcareUrl = (uuid: string): string =>
-  `https://uploadcare.engelvoelkers.com/${uuid}/-/resize/1200x/`;
+  `https://ucarecdn.com/${uuid}/-/resize/1200x/`;
 
 /* ------------------------------------------------------------------ */
 /*  Parser principal                                                   */

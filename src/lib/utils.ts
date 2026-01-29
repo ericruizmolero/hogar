@@ -43,8 +43,6 @@ const PROXIED_IMAGE_DOMAINS = [
   'pisos.com',
   'habitaclia.com',
   'apinmo.com',
-  'engelvoelkers.com',
-  'ucarecdn.com',
   'inmotek.net',
 ];
 

@@ -366,8 +366,6 @@ ALLOWED_IMAGE_DOMAINS = [
     'pisos.com',
     'habitaclia.com',
     'apinmo.com',
-    'engelvoelkers.com',
-    'ucarecdn.com',
     'inmotek.net',
 ]
 
@@ -378,8 +376,6 @@ DOMAIN_REFERERS = {
     'pisos.com': 'https://www.pisos.com/',
     'habitaclia.com': 'https://www.habitaclia.com/',
     'apinmo.com': 'https://www.grupotome.com/',
-    'engelvoelkers.com': 'https://www.engelvoelkers.com/',
-    'ucarecdn.com': 'https://www.engelvoelkers.com/',
     'inmotek.net': 'https://www.areizaga.com/',
 }
 
