@@ -433,10 +433,14 @@ def image_proxy():
 
         if response.status_code == 200:
             from flask import Response
-            return Response(
+            resp = Response(
                 response.content,
                 content_type=response.headers.get('content-type', 'image/jpeg')
             )
+            # Cache images aggressively — they rarely change
+            resp.headers['Cache-Control'] = 'public, max-age=2592000, immutable'  # 30 days
+            resp.headers['Vary'] = 'Accept'
+            return resp
         else:
             return f'Failed to fetch image: {response.status_code}', response.status_code
     except Exception as e:

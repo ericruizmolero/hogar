@@ -83,6 +83,17 @@ export function PropertyCard({ property, selected, onSelect, selectable, onDelet
               src={getImageUrl(property.photos[0])}
               alt={property.address}
               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+              loading="lazy"
+              decoding="async"
+              onError={(e) => {
+                const el = e.target as HTMLImageElement;
+                if (!el.dataset.retried) {
+                  el.dataset.retried = '1';
+                  el.src = el.src + (el.src.includes('?') ? '&' : '?') + 'r=1';
+                } else {
+                  el.style.display = 'none';
+                }
+              }}
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-[var(--color-text-tertiary)]">

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { getImageUrl } from '../lib/utils';
 
@@ -7,9 +7,30 @@ interface ImageSliderProps {
   address: string;
 }
 
+const ERROR_SRC = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect fill="%23ddd" width="100" height="100"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%23999" font-size="14">Error</text></svg>';
+
+function useImageError() {
+  const [failed, setFailed] = useState<Set<string>>(new Set());
+  const [retried, setRetried] = useState<Set<string>>(new Set());
+
+  const handleError = useCallback((src: string, el: HTMLImageElement) => {
+    if (!retried.has(src)) {
+      // Retry once — append cache-buster
+      setRetried((prev) => new Set(prev).add(src));
+      el.src = src + (src.includes('?') ? '&' : '?') + 'r=1';
+    } else {
+      setFailed((prev) => new Set(prev).add(src));
+      el.src = ERROR_SRC;
+    }
+  }, [retried]);
+
+  return { failed, handleError };
+}
+
 export function ImageSlider({ images, address }: ImageSliderProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [fullscreen, setFullscreen] = useState(false);
+  const { handleError } = useImageError();
 
   if (images.length === 0) {
     return (
@@ -38,16 +59,15 @@ export function ImageSlider({ images, address }: ImageSliderProps) {
       {/* Slider normal */}
       <div className="relative group">
         <div
-          className="w-full h-72 md:h-96 cursor-pointer"
+          className="w-full h-72 md:h-96 cursor-pointer bg-[var(--color-bg-secondary)]"
           onClick={() => setFullscreen(true)}
         >
           <img
             src={getImageUrl(images[currentIndex])}
             alt={`${address} - Foto ${currentIndex + 1}`}
             className="w-full h-full object-cover"
-            onError={(e) => {
-              (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect fill="%23ddd" width="100" height="100"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%23999">Error</text></svg>';
-            }}
+            decoding="async"
+            onError={(e) => handleError(getImageUrl(images[currentIndex]), e.target as HTMLImageElement)}
           />
         </div>
 
@@ -81,7 +101,7 @@ export function ImageSlider({ images, address }: ImageSliderProps) {
               <button
                 key={idx}
                 onClick={() => setCurrentIndex(idx)}
-                className={`flex-shrink-0 w-16 h-16 rounded overflow-hidden border-2 transition-all ${
+                className={`flex-shrink-0 w-16 h-16 rounded overflow-hidden border-2 transition-all bg-[var(--color-bg-secondary)] ${
                   idx === currentIndex ? 'border-blue-500' : 'border-transparent opacity-70 hover:opacity-100'
                 }`}
               >
@@ -89,6 +109,8 @@ export function ImageSlider({ images, address }: ImageSliderProps) {
                   src={getImageUrl(img)}
                   alt={`Thumbnail ${idx + 1}`}
                   className="w-full h-full object-cover"
+                  loading="lazy"
+                  decoding="async"
                   onError={(e) => {
                     (e.target as HTMLImageElement).style.display = 'none';
                   }}
@@ -118,6 +140,7 @@ export function ImageSlider({ images, address }: ImageSliderProps) {
             src={getImageUrl(images[currentIndex])}
             alt={`${address} - Foto ${currentIndex + 1}`}
             className="max-w-full max-h-full object-contain"
+            decoding="async"
             onClick={(e) => e.stopPropagation()}
           />
 

@@ -2,7 +2,7 @@ import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Phone, Check, ArrowLeft, PhoneOff, Circle, CheckCircle2, ExternalLink, Pencil } from 'lucide-react';
 import { useProperties } from '../hooks/useProperties';
-import { formatPrice } from '../lib/utils';
+import { formatPrice, getImageUrl } from '../lib/utils';
 import type { Property } from '../types';
 
 type Filter = 'all' | 'pending' | 'contacted';
@@ -198,9 +198,14 @@ function ContactCard({
         {/* Thumbnail */}
         {thumb && (
           <img
-            src={thumb}
+            src={getImageUrl(thumb)}
             alt=""
-            className="w-9 h-9 rounded object-cover flex-shrink-0"
+            className="w-9 h-9 rounded object-cover flex-shrink-0 bg-[var(--color-bg-secondary)]"
+            loading="lazy"
+            decoding="async"
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = 'none';
+            }}
           />
         )}
 
