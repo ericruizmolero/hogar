@@ -434,7 +434,7 @@ def image_proxy():
                 content_type=response.headers.get('content-type', 'image/jpeg')
             )
             # Cache images aggressively — they rarely change
-            resp.headers['Cache-Control'] = 'public, max-age=2592000, immutable'  # 30 days
+            resp.headers['Cache-Control'] = 'public, s-maxage=2592000, max-age=2592000, immutable'
             resp.headers['Vary'] = 'Accept'
             return resp
         else:

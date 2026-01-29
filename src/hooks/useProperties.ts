@@ -12,6 +12,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../context/AuthContext';
+import { uploadPropertyPhotos } from '../lib/storage';
 import type { Property, PropertyStatus } from '../types';
 
 export function useProperties() {
@@ -61,11 +62,25 @@ export function useProperties() {
       Object.entries({ ...property, photos }).filter(([, v]) => v !== undefined)
     );
 
-    await addDoc(collection(db, `users/${user.uid}/properties`), {
+    // 1. Guardar inmediatamente con URLs originales
+    const docRef = await addDoc(collection(db, `users/${user.uid}/properties`), {
       ...cleanProperty,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     });
+
+    // 2. Background: subir fotos a Firebase Storage (fire & forget)
+    const hasExternal = photos.some(
+      (p) => !p.startsWith('data:') && !p.includes('firebasestorage') && !p.includes('googleapis.com'),
+    );
+    if (hasExternal) {
+      uploadPropertyPhotos(photos, docRef.id, user.uid)
+        .then(async (firebaseUrls) => {
+          const ref = doc(db, `users/${user.uid}/properties`, docRef.id);
+          await updateDoc(ref, { photos: firebaseUrls, updatedAt: Timestamp.now() });
+        })
+        .catch((err) => console.error('Background photo upload failed:', err));
+    }
   };
 
   const updateProperty = async (id: string, updates: Partial<Property>) => {

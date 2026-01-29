@@ -1,52 +1,58 @@
-import { getStorage, ref, uploadString, getDownloadURL } from 'firebase/storage';
-import app from './firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage } from './firebase';
 
-const storage = getStorage(app);
-
-export async function uploadBase64Image(
-  base64Data: string,
-  path: string
-): Promise<string> {
-  try {
-    const storageRef = ref(storage, path);
-
-    // Si es una URL normal (no base64), devolverla tal cual
-    if (!base64Data.startsWith('data:')) {
-      return base64Data;
-    }
-
-    // Subir imagen en base64
-    const snapshot = await uploadString(storageRef, base64Data, 'data_url');
-    const downloadURL = await getDownloadURL(snapshot.ref);
-
-    return downloadURL;
-  } catch (error) {
-    console.error('Error uploading image:', error);
-    // Si falla, devolver la imagen original
-    return base64Data;
-  }
-}
-
-export async function uploadPropertyImages(
-  images: string[],
+/**
+ * Descarga fotos externas a través del proxy y las sube a Firebase Storage.
+ * Devuelve un array de URLs de Firebase Storage.
+ * Si una foto ya es Firebase Storage o data:, se mantiene tal cual.
+ * Si falla la descarga/subida, se mantiene la URL original.
+ */
+export async function uploadPropertyPhotos(
+  photos: string[],
   propertyId: string,
-  userId: string
+  userId: string,
+  onProgress?: (completed: number, total: number) => void,
 ): Promise<string[]> {
-  const uploadedUrls: string[] = [];
+  const results: string[] = [];
 
-  for (let i = 0; i < images.length; i++) {
-    const image = images[i];
-    const path = `users/${userId}/properties/${propertyId}/photo_${i}.jpg`;
+  for (let i = 0; i < photos.length; i++) {
+    const photo = photos[i];
+
+    // Ya es Firebase Storage o data: → skip
+    if (
+      photo.startsWith('data:') ||
+      photo.includes('firebasestorage') ||
+      photo.includes('googleapis.com')
+    ) {
+      results.push(photo);
+      onProgress?.(i + 1, photos.length);
+      continue;
+    }
 
     try {
-      const url = await uploadBase64Image(image, path);
-      uploadedUrls.push(url);
+      // Descargar via proxy
+      const base = import.meta.env.DEV ? 'http://localhost:5001' : '';
+      const proxyUrl = `${base}/api/image-proxy?url=${encodeURIComponent(photo)}`;
+      const response = await fetch(proxyUrl);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      const blob = await response.blob();
+      const storagePath = `users/${userId}/properties/${propertyId}/photo_${i}.jpg`;
+      const storageRef = ref(storage, storagePath);
+
+      await uploadBytes(storageRef, blob, {
+        contentType: blob.type || 'image/jpeg',
+      });
+
+      const downloadUrl = await getDownloadURL(storageRef);
+      results.push(downloadUrl);
     } catch (error) {
-      console.error(`Error uploading image ${i}:`, error);
-      // Si falla, usar la imagen original
-      uploadedUrls.push(image);
+      console.warn(`Photo ${i} upload failed, keeping original URL:`, error);
+      results.push(photo);
     }
+
+    onProgress?.(i + 1, photos.length);
   }
 
-  return uploadedUrls;
+  return results;
 }

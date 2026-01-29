@@ -1,7 +1,12 @@
-import { useState, useEffect } from 'react';
-import { Save, RotateCcw, Plus, X, Users, PiggyBank, Search } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Save, RotateCcw, Plus, X, Users, PiggyBank, Search, ImageUp } from 'lucide-react';
 import { useRequirements } from '../hooks/useRequirements';
 import { useFinancialProfile } from '../hooks/useFinancialProfile';
+import { useProperties } from '../hooks/useProperties';
+import { useAuth } from '../context/AuthContext';
+import { uploadPropertyPhotos } from '../lib/storage';
+import { doc, updateDoc, Timestamp } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 
@@ -15,6 +20,52 @@ export function Settings() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [activeTab, setActiveTab] = useState<'requirements' | 'financial'>('financial');
+
+  // Migration state
+  const { properties } = useProperties();
+  const { user } = useAuth();
+  const [migrating, setMigrating] = useState(false);
+  const [migrateProgress, setMigrateProgress] = useState({ current: 0, total: 0, photos: 0 });
+  const [migrateDone, setMigrateDone] = useState(false);
+
+  const needsMigration = properties.filter(p =>
+    p.photos?.some(url =>
+      !url.startsWith('data:') &&
+      !url.includes('firebasestorage') &&
+      !url.includes('googleapis.com')
+    )
+  );
+
+  const migratePhotos = useCallback(async () => {
+    if (!user || migrating) return;
+    setMigrating(true);
+    setMigrateDone(false);
+    let totalPhotos = 0;
+
+    for (let i = 0; i < needsMigration.length; i++) {
+      const prop = needsMigration[i];
+      setMigrateProgress({ current: i + 1, total: needsMigration.length, photos: totalPhotos });
+
+      try {
+        const firebaseUrls = await uploadPropertyPhotos(
+          prop.photos || [],
+          prop.id,
+          user.uid,
+        );
+        const migratedCount = firebaseUrls.filter(u => u.includes('firebasestorage') || u.includes('googleapis.com')).length;
+        totalPhotos += migratedCount;
+
+        const ref = doc(db, `users/${user.uid}/properties`, prop.id);
+        await updateDoc(ref, { photos: firebaseUrls, updatedAt: Timestamp.now() });
+      } catch (err) {
+        console.error(`Migration failed for property ${prop.id}:`, err);
+      }
+    }
+
+    setMigrateProgress(prev => ({ ...prev, photos: totalPhotos }));
+    setMigrating(false);
+    setMigrateDone(true);
+  }, [user, migrating, needsMigration]);
 
   useEffect(() => {
     setForm(requirements);
@@ -383,6 +434,50 @@ export function Settings() {
           <RotateCcw size={16} className="mr-2" />
           Restaurar
         </Button>
+      </div>
+
+      {/* Migración de fotos */}
+      <div className="pt-6 mt-6 border-t border-[var(--color-border)]">
+        <h2 className="text-sm font-medium text-[var(--color-text-secondary)] mb-3 uppercase tracking-wide flex items-center gap-2">
+          <ImageUp size={16} />
+          Migrar fotos a Firebase Storage
+        </h2>
+        <p className="text-sm text-[var(--color-text-tertiary)] mb-4">
+          Sube las fotos externas a Firebase Storage para que carguen mucho más rápido.
+        </p>
+
+        {needsMigration.length === 0 && !migrateDone ? (
+          <p className="text-sm text-[var(--color-text-secondary)]">
+            Todas las fotos ya están en Firebase Storage.
+          </p>
+        ) : migrateDone ? (
+          <p className="text-sm text-green-600">
+            Migración completada. {migrateProgress.photos} fotos subidas de {migrateProgress.total} propiedades.
+          </p>
+        ) : (
+          <>
+            <p className="text-sm text-[var(--color-text)] mb-3">
+              {needsMigration.length} {needsMigration.length === 1 ? 'propiedad tiene' : 'propiedades tienen'} fotos externas pendientes de migrar.
+            </p>
+            {migrating && (
+              <div className="mb-3">
+                <div className="w-full bg-[var(--color-bg-secondary)] rounded-full h-2 mb-2">
+                  <div
+                    className="bg-[var(--color-accent)] h-2 rounded-full transition-all"
+                    style={{ width: `${(migrateProgress.current / migrateProgress.total) * 100}%` }}
+                  />
+                </div>
+                <p className="text-xs text-[var(--color-text-tertiary)]">
+                  Propiedad {migrateProgress.current} de {migrateProgress.total} ({migrateProgress.photos} fotos subidas)
+                </p>
+              </div>
+            )}
+            <Button onClick={migratePhotos} disabled={migrating}>
+              <ImageUp size={16} className="mr-2" />
+              {migrating ? 'Migrando...' : 'Migrar fotos'}
+            </Button>
+          </>
+        )}
       </div>
     </div>
   );

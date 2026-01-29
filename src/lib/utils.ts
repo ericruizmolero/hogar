@@ -52,11 +52,15 @@ export function getImageUrl(url: string): string {
     return url;
   }
 
+  // Firebase Storage URLs — CDN directo, no necesitan proxy
+  if (url.includes('firebasestorage') || url.includes('googleapis.com')) {
+    return url;
+  }
+
   const needsProxy = PROXIED_IMAGE_DOMAINS.some((domain) => url.includes(domain));
   if (needsProxy) {
-    const apiUrl = import.meta.env.DEV
-      ? 'http://localhost:5001'
-      : (import.meta.env.VITE_API_URL || '');
+    // DEV: servidor local. PROD: ruta relativa → pasa por Vercel CDN (rewrite)
+    const apiUrl = import.meta.env.DEV ? 'http://localhost:5001' : '';
     return `${apiUrl}/api/image-proxy?url=${encodeURIComponent(url)}`;
   }
 

@@ -3,6 +3,7 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "rewrites": [
+    { "source": "/api/image-proxy", "destination": "https://hogar-api.onrender.com/api/image-proxy" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
