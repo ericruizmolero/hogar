@@ -33,21 +33,55 @@ export function calculatePricePerMeter(price: number, squareMeters: number): num
   return Math.round(price / squareMeters);
 }
 
-// Devuelve la URL de la imagen, usando proxy para URLs de Idealista
+/**
+ * Dominios cuyas imágenes necesitan pasar por el proxy para evitar CORS.
+ * Debe coincidir con ALLOWED_IMAGE_DOMAINS en server.py.
+ */
+const PROXIED_IMAGE_DOMAINS = [
+  'idealista.com',
+  'fotocasa.es',
+  'pisos.com',
+  'habitaclia.com',
+  'apinmo.com',
+  'engelvoelkers.com',
+  'ucarecdn.com',
+  'inmotek.net',
+];
+
+// Devuelve la URL de la imagen, usando proxy para dominios conocidos
 export function getImageUrl(url: string): string {
-  // Si ya es base64 o data URL, devolver tal cual
-  if (url.startsWith('data:')) {
+  if (!url || url.startsWith('data:')) {
     return url;
   }
 
-  // Si es una URL de Idealista, usar el proxy para evitar CORS
-  if (url.includes('idealista.com')) {
+  const needsProxy = PROXIED_IMAGE_DOMAINS.some((domain) => url.includes(domain));
+  if (needsProxy) {
     const apiUrl = import.meta.env.DEV
       ? 'http://localhost:5001'
       : (import.meta.env.VITE_API_URL || '');
     return `${apiUrl}/api/image-proxy?url=${encodeURIComponent(url)}`;
   }
 
-  // Para otras URLs (Firebase Storage, etc.), devolver tal cual
   return url;
+}
+
+/**
+ * Devuelve el nombre legible de la plataforma a partir de la URL del anuncio.
+ * Ej: "https://www.idealista.com/…" → "Idealista"
+ */
+export function getProviderLabel(url: string): string {
+  // Importar dinámicamente evitaría dependencia circular, pero las constantes
+  // son ligeras, así que mapeamos directamente por dominio.
+  const domainLabels: Record<string, string> = {
+    'idealista.com': 'Idealista',
+    'fotocasa.es': 'Fotocasa',
+    'grupotome.com': 'Grupo Tomé',
+    'engelvoelkers.com': 'Engel & Völkers',
+    'areizaga.com': 'Areizaga',
+  };
+  const lower = url.toLowerCase();
+  for (const [domain, label] of Object.entries(domainLabels)) {
+    if (lower.includes(domain)) return label;
+  }
+  return 'proveedor';
 }

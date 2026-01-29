@@ -10,6 +10,7 @@ import { MapView } from './pages/MapView';
 import { Settings } from './pages/Settings';
 import { Simulator } from './pages/Simulator';
 import { ToContact } from './pages/ToContact';
+import { VisitChecklist } from './pages/VisitChecklist';
 
 function PrivateRoute() {
   const { user, loading } = useAuth();
@@ -43,6 +44,7 @@ function App() {
           <Route element={<PrivateRoute />}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/property/:id" element={<Property />} />
+            <Route path="/visita/:id" element={<VisitChecklist />} />
             <Route path="/compare" element={<Compare />} />
             <Route path="/map" element={<MapView />} />
             <Route path="/reminders" element={<Reminders />} />

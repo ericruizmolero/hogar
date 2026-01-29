@@ -4,6 +4,7 @@ import { useProperties } from '../hooks/useProperties';
 import { PropertyCard } from '../components/PropertyCard';
 import { PropertyForm } from '../components/PropertyForm';
 import { ImportModal } from '../components/ImportModal';
+import { QuickSearch } from '../components/QuickSearch';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
 import { evaluateProperty } from '../lib/requirements';
@@ -139,6 +140,9 @@ export function Dashboard() {
           </Button>
         </div>
       </div>
+
+      {/* Quick Search Links */}
+      <QuickSearch />
 
       {/* Filters */}
       <div className="mb-6 space-y-4">

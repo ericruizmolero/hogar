@@ -1,417 +1,449 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { Phone, Copy, Check, ArrowLeft, ExternalLink, Home, PhoneCall, PhoneOff, ChevronDown, ChevronUp, Mail, Plus, Save } from 'lucide-react';
+import { Phone, Check, ArrowLeft, PhoneOff, Circle, CheckCircle2, ExternalLink, Pencil } from 'lucide-react';
 import { useProperties } from '../hooks/useProperties';
-import { formatPrice, getImageUrl } from '../lib/utils';
-import type { CallResult } from '../types';
-import { STATUS_LABELS, CALL_RESULT_LABELS } from '../types';
+import { formatPrice } from '../lib/utils';
+import type { Property } from '../types';
 
-const STATUS_STYLES: Record<string, string> = {
-  pending: 'bg-[var(--color-pending)] text-[var(--color-pending-text)]',
-  contacted: 'bg-[var(--color-contacted)] text-[var(--color-contacted-text)]',
-  visited: 'bg-[var(--color-visited)] text-[var(--color-visited-text)]',
-  favorite: 'bg-[var(--color-favorite)] text-[var(--color-favorite-text)]',
-  discarded: 'bg-[var(--color-discarded)] text-[var(--color-discarded-text)]',
-};
-
-type FilterStatus = 'all' | 'pending' | 'favorite' | 'contacted';
+type Filter = 'all' | 'pending' | 'contacted';
 
 export function ToContact() {
   const { properties, updateStatus, updateProperty } = useProperties();
-  const [filter, setFilter] = useState<FilterStatus>('all');
-  const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [showQuickCall, setShowQuickCall] = useState<string | null>(null);
-  const [expandedCard, setExpandedCard] = useState<string | null>(null);
-  const [editingContact, setEditingContact] = useState<{
-    id: string;
-    email: string;
-    phone2: string;
-    callNotes: string;
-  } | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [filter, setFilter] = useState<Filter>('all');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  // Filtrar propiedades que tienen teléfono y están en estados relevantes
-  const contactableProperties = useMemo(() => {
+  const list = useMemo(() => {
     return properties
-      .filter(p => {
-        const hasPhone = p.contact?.phone;
-        if (!hasPhone) return false;
-
-        if (filter === 'all') {
-          return ['pending', 'favorite', 'contacted'].includes(p.status);
-        }
-        return p.status === filter;
+      .filter((p) => {
+        if (!p.contact?.phone) return false;
+        const relevant = ['pending', 'favorite', 'contacted'].includes(p.status);
+        if (!relevant) return false;
+        if (filter === 'pending') return p.status !== 'contacted';
+        if (filter === 'contacted') return p.status === 'contacted';
+        return true;
       })
       .sort((a, b) => {
-        // Prioridad: favoritos primero, luego pendientes, luego contactados
-        const priority: Record<string, number> = { favorite: 0, pending: 1, contacted: 2 };
-        return (priority[a.status] ?? 3) - (priority[b.status] ?? 3);
+        const aContacted = a.status === 'contacted' ? 0 : 1;
+        const bContacted = b.status === 'contacted' ? 0 : 1;
+        if (aContacted !== bContacted) return aContacted - bContacted;
+        return b.createdAt.getTime() - a.createdAt.getTime();
       });
   }, [properties, filter]);
 
-  const propertiesWithoutPhone = useMemo(() => {
-    return properties.filter(p =>
-      !p.contact?.phone &&
-      ['pending', 'favorite'].includes(p.status)
+  const noPhone = useMemo(
+    () => properties.filter((p) => !p.contact?.phone && ['pending', 'favorite'].includes(p.status)),
+    [properties],
+  );
+
+  const counts = useMemo(() => {
+    const withPhone = properties.filter(
+      (p) => p.contact?.phone && ['pending', 'favorite', 'contacted'].includes(p.status),
     );
+    return {
+      all: withPhone.length,
+      pending: withPhone.filter((p) => p.status !== 'contacted').length,
+      contacted: withPhone.filter((p) => p.status === 'contacted').length,
+    };
   }, [properties]);
 
-  const handleCopyPhone = async (phone: string, id: string) => {
-    await navigator.clipboard.writeText(phone);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
-  };
-
-  const handleQuickCallResult = async (propertyId: string, _result: CallResult) => {
-    // Marcar como contactado si no lo está
-    // TODO: Integrar con useCalls para registrar la llamada con el resultado
-    const property = properties.find(p => p.id === propertyId);
-    if (property && property.status === 'pending') {
-      await updateStatus(propertyId, 'contacted');
-    }
-    setShowQuickCall(null);
-  };
-
-  const handleExpandCard = (propertyId: string) => {
-    if (expandedCard === propertyId) {
-      setExpandedCard(null);
-      setEditingContact(null);
-    } else {
-      const property = properties.find(p => p.id === propertyId);
-      if (property) {
-        setExpandedCard(propertyId);
-        setEditingContact({
-          id: propertyId,
-          email: property.contact?.email || '',
-          phone2: property.contact?.phone2 || '',
-          callNotes: property.callNotes || '',
-        });
-      }
-    }
-  };
-
-  const handleSaveContactInfo = async () => {
-    if (!editingContact) return;
-    setSaving(true);
-    try {
-      const property = properties.find(p => p.id === editingContact.id);
-      if (property) {
-        await updateProperty(editingContact.id, {
-          contact: {
-            ...property.contact,
-            email: editingContact.email,
-            phone2: editingContact.phone2,
-          },
-          callNotes: editingContact.callNotes,
-        });
-      }
-      setExpandedCard(null);
-      setEditingContact(null);
-    } catch (err) {
-      console.error('Error guardando:', err);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const counts = useMemo(() => ({
-    all: properties.filter(p => p.contact?.phone && ['pending', 'favorite', 'contacted'].includes(p.status)).length,
-    pending: properties.filter(p => p.contact?.phone && p.status === 'pending').length,
-    favorite: properties.filter(p => p.contact?.phone && p.status === 'favorite').length,
-    contacted: properties.filter(p => p.contact?.phone && p.status === 'contacted').length,
-  }), [properties]);
+  const toggleContacted = useCallback(
+    async (p: Property) => {
+      await updateStatus(p.id, p.status === 'contacted' ? 'pending' : 'contacted');
+    },
+    [updateStatus],
+  );
 
   return (
-    <div className="max-w-4xl mx-auto px-3 sm:px-6 py-6 sm:py-8 animate-in">
+    <div className="max-w-5xl mx-auto px-3 sm:px-6 py-6 sm:py-8 animate-in">
       {/* Header */}
-      <div className="mb-4 sm:mb-6">
-        <Link
-          to="/"
-          className="inline-flex items-center gap-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)] mb-3 sm:mb-4"
-        >
-          <ArrowLeft size={16} />
-          Volver
-        </Link>
-        <h1
-          className="text-xl sm:text-2xl font-medium text-[var(--color-text)]"
-          style={{ fontFamily: 'var(--font-serif)' }}
-        >
-          Pisos por contactar
-        </h1>
-        <p className="text-xs sm:text-sm text-[var(--color-text-secondary)] mt-1">
-          {contactableProperties.length} pisos con teléfono
-        </p>
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)] mb-3"
+          >
+            <ArrowLeft size={16} />
+            Volver
+          </Link>
+          <h1
+            className="text-xl sm:text-2xl font-medium text-[var(--color-text)]"
+            style={{ fontFamily: 'var(--font-serif)' }}
+          >
+            Contactar
+          </h1>
+        </div>
       </div>
 
-      {/* Filtros */}
-      <div className="flex gap-1.5 sm:gap-2 mb-4 sm:mb-6 flex-wrap">
-        {[
-          { key: 'all', label: 'Todos' },
-          { key: 'favorite', label: 'Favoritos' },
-          { key: 'pending', label: 'Pendientes' },
-          { key: 'contacted', label: 'Contactados' },
-        ].map(({ key, label }) => (
+      {/* Filters */}
+      <div className="flex gap-1.5 mb-4">
+        {([
+          { key: 'all', label: 'Todos', count: counts.all },
+          { key: 'pending', label: 'Por contactar', count: counts.pending },
+          { key: 'contacted', label: 'Contactados', count: counts.contacted },
+        ] as const).map(({ key, label, count }) => (
           <button
             key={key}
-            onClick={() => setFilter(key as FilterStatus)}
-            className={`px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm rounded-md transition-all ${
+            onClick={() => setFilter(key)}
+            className={`px-3 py-1.5 text-xs sm:text-sm rounded-md transition-all ${
               filter === key
-                ? 'bg-[var(--color-accent)] text-white'
+                ? 'bg-[var(--color-text)] text-white'
                 : 'bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)]'
             }`}
           >
-            {label} ({counts[key as FilterStatus]})
+            {label} ({count})
           </button>
         ))}
       </div>
 
-      {/* Lista de propiedades */}
-      {contactableProperties.length === 0 ? (
-        <div className="p-8 bg-[var(--color-bg-secondary)] rounded-lg text-center">
-          <Phone size={32} className="mx-auto text-[var(--color-text-tertiary)] mb-3" />
-          <p className="text-[var(--color-text-secondary)]">
-            No hay pisos con teléfono en este filtro
+      {/* Grid */}
+      {list.length === 0 ? (
+        <div className="py-16 text-center">
+          <Phone size={28} className="mx-auto text-[var(--color-text-tertiary)] mb-3" strokeWidth={1.5} />
+          <p className="text-sm text-[var(--color-text-tertiary)]">
+            {filter === 'contacted' ? 'Ningun piso contactado' : 'Todos contactados'}
           </p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {contactableProperties.map((property) => (
-            <div
-              key={property.id}
-              className="bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg overflow-hidden hover:border-[var(--color-border-strong)] transition-colors"
-            >
-              <div className="flex flex-col sm:flex-row">
-                {/* Top row on mobile: thumbnail + content */}
-                <div className="flex flex-1 min-w-0">
-                  {/* Thumbnail */}
-                  <Link to={`/property/${property.id}`} className="flex-shrink-0">
-                    <div className="w-20 h-20 sm:w-24 sm:h-24 bg-[var(--color-bg-secondary)]">
-                      {property.photos && property.photos.length > 0 ? (
-                        <img
-                          src={getImageUrl(property.photos[0])}
-                          alt={property.address}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-[var(--color-text-tertiary)]">
-                          <Home size={24} />
-                        </div>
-                      )}
-                    </div>
-                  </Link>
-
-                  {/* Content */}
-                  <div className="flex-1 p-2 sm:p-3 min-w-0">
-                    <div className="flex items-start justify-between gap-2 mb-1">
-                      <div className="min-w-0">
-                        <Link
-                          to={`/property/${property.id}`}
-                          className="text-xs sm:text-sm font-medium text-[var(--color-text)] hover:text-[var(--color-accent)] line-clamp-1"
-                        >
-                          {property.zone || property.address}
-                        </Link>
-                        <div className="text-base sm:text-lg font-medium text-[var(--color-text)]" style={{ fontFamily: 'var(--font-serif)' }}>
-                          {formatPrice(property.price)}
-                        </div>
-                      </div>
-                      <span className={`flex-shrink-0 px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-xs font-medium ${STATUS_STYLES[property.status]}`}>
-                        {STATUS_LABELS[property.status]}
-                      </span>
-                    </div>
-
-                    {/* Contact info */}
-                    <div className="flex items-center gap-2 mt-1">
-                      {property.contact?.agency && (
-                        <span className="text-[10px] sm:text-xs text-[var(--color-text-tertiary)] line-clamp-1">
-                          {property.contact.agency}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Phone actions - full width on mobile, side column on desktop */}
-                <div className="flex sm:flex-col justify-center gap-2 p-2 sm:p-3 border-t sm:border-t-0 sm:border-l border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
-                  <a
-                    href={`tel:${property.contact?.phone}`}
-                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-[var(--color-accent)] text-white rounded-md hover:opacity-90 transition-opacity text-sm font-medium"
-                  >
-                    <Phone size={14} />
-                    <span className="sm:inline">Llamar</span>
-                  </a>
-                  <button
-                    onClick={() => handleCopyPhone(property.contact?.phone || '', property.id)}
-                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-md hover:bg-[var(--color-bg-hover)] transition-colors text-sm"
-                  >
-                    {copiedId === property.id ? (
-                      <>
-                        <Check size={14} className="text-[var(--color-visited-text)]" />
-                        <span className="text-[var(--color-visited-text)] hidden sm:inline">Copiado</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy size={14} />
-                        <span className="text-[var(--color-text-secondary)] text-xs sm:text-sm">{property.contact?.phone}</span>
-                      </>
-                    )}
-                  </button>
-                </div>
+        <>
+          <div className="hidden sm:flex gap-2">
+            {[0, 1].map((col) => (
+              <div key={col} className="flex-1 flex flex-col gap-2">
+                {list.filter((_, i) => i % 2 === col).map((p) => (
+                  <ContactCard
+                    key={p.id}
+                    property={p}
+                    isExpanded={expandedId === p.id}
+                    onToggleExpand={() => setExpandedId(expandedId === p.id ? null : p.id)}
+                    onToggleContacted={() => toggleContacted(p)}
+                    onUpdateProperty={updateProperty}
+                  />
+                ))}
               </div>
-
-              {/* Quick call result (expandible) */}
-              {showQuickCall === property.id && (
-                <div className="p-2 sm:p-3 border-t border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
-                  <p className="text-[10px] sm:text-xs text-[var(--color-text-secondary)] mb-2">¿Cómo fue la llamada?</p>
-                  <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                    {Object.entries(CALL_RESULT_LABELS).map(([result, label]) => (
-                      <button
-                        key={result}
-                        onClick={() => handleQuickCallResult(property.id, result as CallResult)}
-                        className="px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs bg-[var(--color-bg)] border border-[var(--color-border)] rounded-md hover:bg-[var(--color-bg-hover)] transition-colors"
-                      >
-                        {label}
-                      </button>
-                    ))}
-                    <button
-                      onClick={() => setShowQuickCall(null)}
-                      className="px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs text-[var(--color-text-tertiary)] hover:text-[var(--color-text)]"
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Quick actions bar */}
-              <div className="flex items-center flex-wrap gap-x-3 gap-y-1 px-2 sm:px-3 py-2 border-t border-[var(--color-border)] bg-[var(--color-bg)]">
-                <button
-                  onClick={() => setShowQuickCall(showQuickCall === property.id ? null : property.id)}
-                  className="flex items-center gap-1 text-[10px] sm:text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"
-                >
-                  <PhoneCall size={11} />
-                  <span className="hidden xs:inline">Registrar</span> llamada
-                </button>
-                {property.status === 'pending' && (
-                  <button
-                    onClick={() => updateStatus(property.id, 'contacted')}
-                    className="flex items-center gap-1 text-[10px] sm:text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-contacted-text)]"
-                  >
-                    <Check size={11} />
-                    Contactado
-                  </button>
-                )}
-                {property.url && (
-                  <a
-                    href={property.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1 text-[10px] sm:text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-accent)]"
-                  >
-                    <ExternalLink size={11} />
-                    <span className="hidden sm:inline">Ver</span> anuncio
-                  </a>
-                )}
-                <button
-                  onClick={() => handleExpandCard(property.id)}
-                  className="flex items-center gap-1 text-[10px] sm:text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text)] ml-auto"
-                >
-                  <Plus size={11} />
-                  Más
-                  {expandedCard === property.id ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
-                </button>
-              </div>
-
-              {/* Expanded contact info */}
-              {expandedCard === property.id && editingContact && (
-                <div className="p-3 sm:p-4 border-t border-[var(--color-border)] bg-[var(--color-bg-secondary)] space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[10px] sm:text-xs text-[var(--color-text-secondary)] mb-1">
-                        <Mail size={10} className="inline mr-1" />
-                        Email
-                      </label>
-                      <input
-                        type="email"
-                        value={editingContact.email}
-                        onChange={(e) => setEditingContact({ ...editingContact, email: e.target.value })}
-                        placeholder="email@ejemplo.com"
-                        className="w-full px-2 py-1.5 text-sm bg-[var(--color-bg)] border border-[var(--color-border)] rounded focus:outline-none focus:border-[var(--color-accent)]"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] sm:text-xs text-[var(--color-text-secondary)] mb-1">
-                        <Phone size={10} className="inline mr-1" />
-                        Teléfono 2
-                      </label>
-                      <input
-                        type="tel"
-                        value={editingContact.phone2}
-                        onChange={(e) => setEditingContact({ ...editingContact, phone2: e.target.value })}
-                        placeholder="Otro teléfono"
-                        className="w-full px-2 py-1.5 text-sm bg-[var(--color-bg)] border border-[var(--color-border)] rounded focus:outline-none focus:border-[var(--color-accent)]"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-[10px] sm:text-xs text-[var(--color-text-secondary)] mb-1">
-                      Notas de llamadas
-                    </label>
-                    <textarea
-                      value={editingContact.callNotes}
-                      onChange={(e) => setEditingContact({ ...editingContact, callNotes: e.target.value })}
-                      placeholder="Apuntes sobre llamadas, disponibilidad, etc."
-                      rows={3}
-                      className="w-full px-2 py-1.5 text-sm bg-[var(--color-bg)] border border-[var(--color-border)] rounded focus:outline-none focus:border-[var(--color-accent)] resize-none"
-                    />
-                  </div>
-                  <div className="flex justify-end gap-2">
-                    <button
-                      onClick={() => { setExpandedCard(null); setEditingContact(null); }}
-                      className="px-3 py-1.5 text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text)]"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      onClick={handleSaveContactInfo}
-                      disabled={saving}
-                      className="flex items-center gap-1 px-3 py-1.5 text-xs bg-[var(--color-accent)] text-white rounded hover:opacity-90 disabled:opacity-50"
-                    >
-                      <Save size={12} />
-                      {saving ? 'Guardando...' : 'Guardar'}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+          <div className="sm:hidden flex flex-col gap-2">
+            {list.map((p) => (
+              <ContactCard
+                key={p.id}
+                property={p}
+                isExpanded={expandedId === p.id}
+                onToggleExpand={() => setExpandedId(expandedId === p.id ? null : p.id)}
+                onToggleContacted={() => toggleContacted(p)}
+                onUpdateProperty={updateProperty}
+              />
+            ))}
+          </div>
+        </>
       )}
 
-      {/* Pisos sin teléfono */}
-      {propertiesWithoutPhone.length > 0 && (
-        <div className="mt-6 sm:mt-8">
-          <h2 className="text-xs sm:text-sm font-medium text-[var(--color-text-secondary)] uppercase tracking-wide mb-2 sm:mb-3 flex items-center gap-2">
-            <PhoneOff size={14} />
-            Sin teléfono ({propertiesWithoutPhone.length})
-          </h2>
-          <div className="p-3 sm:p-4 bg-[var(--color-bg-secondary)] rounded-lg">
-            <p className="text-xs sm:text-sm text-[var(--color-text-secondary)] mb-2 sm:mb-3">
-              Pisos sin teléfono registrado:
-            </p>
-            <div className="flex flex-wrap gap-1.5 sm:gap-2">
-              {propertiesWithoutPhone.map((p) => (
-                <Link
-                  key={p.id}
-                  to={`/property/${p.id}`}
-                  className="px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm bg-[var(--color-bg)] border border-[var(--color-border)] rounded-md hover:border-[var(--color-accent)] transition-colors"
-                >
-                  {p.zone || p.address} - {formatPrice(p.price)}
-                </Link>
-              ))}
-            </div>
+      {/* No phone */}
+      {noPhone.length > 0 && (
+        <div className="mt-8">
+          <p className="text-xs text-[var(--color-text-tertiary)] uppercase tracking-wide mb-2 flex items-center gap-1.5">
+            <PhoneOff size={12} />
+            Sin telefono ({noPhone.length})
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {noPhone.map((p) => (
+              <Link
+                key={p.id}
+                to={`/property/${p.id}`}
+                className="px-2.5 py-1 text-xs bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-md hover:border-[var(--color-border-strong)] transition-colors"
+              >
+                {p.zone || p.address} · {formatPrice(p.price)}
+              </Link>
+            ))}
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Card — compact, single-row feel with thumbnail
+// ---------------------------------------------------------------------------
+
+function ContactCard({
+  property,
+  isExpanded,
+  onToggleExpand,
+  onToggleContacted,
+  onUpdateProperty,
+}: {
+  property: Property;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
+  onToggleContacted: () => void;
+  onUpdateProperty: (id: string, data: Partial<Property>) => Promise<void>;
+}) {
+  const isContacted = property.status === 'contacted';
+  const notes = property.callNotes || '';
+  const preview = notes.length > 40 ? notes.slice(0, 40) + '...' : notes;
+  const thumb = property.photos?.[0];
+
+  return (
+    <div
+      className={`rounded-lg border transition-colors ${
+        isContacted
+          ? 'border-[var(--color-visited)] bg-[var(--color-bg)]'
+          : 'border-[var(--color-discarded)] bg-[var(--color-bg)]'
+      }`}
+    >
+      {/* Compact row */}
+      <div
+        className="flex items-center gap-2 px-3 py-2.5 cursor-pointer"
+        onClick={onToggleExpand}
+      >
+        {/* Thumbnail */}
+        {thumb && (
+          <img
+            src={thumb}
+            alt=""
+            className="w-9 h-9 rounded object-cover flex-shrink-0"
+          />
+        )}
+
+        {/* Status icon */}
+        {isContacted ? (
+          <CheckCircle2 size={14} className="text-[var(--color-visited-text)] flex-shrink-0" />
+        ) : (
+          <Circle size={14} className="text-[var(--color-discarded-text)] flex-shrink-0" />
+        )}
+
+        {/* Zone + subtitle */}
+        <div className="flex-1 min-w-0">
+          <span className="text-sm font-medium text-[var(--color-text)] truncate block">
+            {property.zone || property.address}
+          </span>
+          {/* Subtitle */}
+          <p className="text-[11px] text-[var(--color-text-secondary)] truncate leading-tight mt-0.5">
+            {[
+              property.rooms > 0 && `${property.rooms} hab`,
+              property.squareMeters > 0 && `${property.squareMeters} m²`,
+              property.floor,
+            ].filter(Boolean).join(' · ')}
+          </p>
+          {/* Notes preview */}
+          {preview && (
+            <p className="text-[11px] text-[var(--color-text-tertiary)] truncate leading-tight mt-0.5">
+              {preview}
+            </p>
+          )}
+        </div>
+
+        {/* Price + Actions */}
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <span
+            className="text-xs font-medium text-[var(--color-text-secondary)] tabular-nums mr-1"
+            style={{ fontFamily: 'var(--font-serif)' }}
+          >
+            {formatPrice(property.price)}
+          </span>
+          <Link
+            to={`/property/${property.id}`}
+            onClick={(e) => e.stopPropagation()}
+            className="p-1.5 rounded-md hover:bg-[var(--color-bg-hover)] transition-colors text-[var(--color-text-tertiary)] hover:text-[var(--color-accent)]"
+            title="Ver ficha"
+          >
+            <ExternalLink size={15} strokeWidth={1.5} />
+          </Link>
+          <a
+            href={`tel:${property.contact?.phone}`}
+            onClick={(e) => e.stopPropagation()}
+            className="p-1.5 rounded-md hover:bg-[var(--color-bg-hover)] transition-colors text-[var(--color-accent)]"
+            title="Llamar"
+          >
+            <Phone size={15} strokeWidth={1.5} />
+          </a>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleContacted();
+            }}
+            className={`p-1.5 rounded-md transition-colors ${
+              isContacted
+                ? 'text-[var(--color-visited-text)] hover:bg-[var(--color-visited)]'
+                : 'text-[var(--color-text-tertiary)] hover:bg-[var(--color-bg-hover)]'
+            }`}
+            title={isContacted ? 'Desmarcar contactado' : 'Marcar contactado'}
+          >
+            <Check size={15} strokeWidth={2} />
+          </button>
+        </div>
+      </div>
+
+      {/* Expanded details */}
+      {isExpanded && (
+        <ExpandedDetails
+          property={property}
+          onSave={onUpdateProperty}
+        />
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Expanded details: notes, listing link, contact editing
+// ---------------------------------------------------------------------------
+
+function ExpandedDetails({
+  property,
+  onSave,
+}: {
+  property: Property;
+  onSave: (id: string, data: Partial<Property>) => Promise<void>;
+}) {
+  const [notes, setNotes] = useState(property.callNotes || '');
+  const [saved, setSaved] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [phone, setPhone] = useState(property.contact?.phone || '');
+  const [phone2, setPhone2] = useState(property.contact?.phone2 || '');
+  const [email, setEmail] = useState(property.contact?.email || '');
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestNotes = useRef(notes);
+  latestNotes.current = notes;
+
+  const showSaved = useCallback(() => {
+    setSaved(true);
+    setTimeout(() => setSaved(false), 1500);
+  }, []);
+
+  const scheduleNotesSave = useCallback(
+    (text: string) => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(async () => {
+        await onSave(property.id, { callNotes: text });
+        showSaved();
+      }, 800);
+    },
+    [property.id, onSave, showSaved],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        onSave(property.id, { callNotes: latestNotes.current });
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const autoResize = useCallback(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
+  }, []);
+
+  useEffect(() => {
+    autoResize();
+  }, [autoResize]);
+
+  const handleNotesChange = (text: string) => {
+    setNotes(text);
+    scheduleNotesSave(text);
+    autoResize();
+  };
+
+  const handleContactBlur = async (field: 'phone' | 'phone2' | 'email', value: string) => {
+    const current = property.contact || { name: '', phone: '', email: '', agency: '' };
+    const updated = { ...current, [field]: value };
+    await onSave(property.id, { contact: updated });
+    showSaved();
+  };
+
+  const agency = property.contact?.agency || '';
+  const inputClass =
+    'w-full px-2 py-1.5 text-xs bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-md focus:outline-none focus:border-[var(--color-accent)] transition-colors';
+
+  return (
+    <div className="px-3 pb-3 space-y-2">
+      <div className="h-px bg-[var(--color-border)]" />
+
+      {/* Info row + action buttons */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3 text-[11px] text-[var(--color-text-tertiary)]">
+          {agency && <span>{agency}</span>}
+          <span>{property.contact?.phone}</span>
+          {property.contact?.phone2 && <span>{property.contact.phone2}</span>}
+        </div>
+        <div className="flex items-center gap-0.5">
+          {property.url && (
+            <a
+              href={property.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-1.5 rounded-md hover:bg-[var(--color-bg-hover)] text-[var(--color-text-tertiary)] hover:text-[var(--color-accent)] transition-colors"
+              title="Ver anuncio"
+            >
+              <ExternalLink size={13} strokeWidth={1.5} />
+            </a>
+          )}
+          <button
+            onClick={() => setEditing(!editing)}
+            className={`p-1.5 rounded-md transition-colors ${
+              editing
+                ? 'text-[var(--color-accent)] bg-[var(--color-bg-hover)]'
+                : 'text-[var(--color-text-tertiary)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg-hover)]'
+            }`}
+            title="Editar contacto"
+          >
+            <Pencil size={13} strokeWidth={1.5} />
+          </button>
+        </div>
+      </div>
+
+      {/* Edit contact fields */}
+      {editing && (
+        <div className="grid grid-cols-2 gap-1.5">
+          <input
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            onBlur={() => handleContactBlur('phone', phone)}
+            placeholder="Teléfono"
+            className={inputClass}
+          />
+          <input
+            type="tel"
+            value={phone2}
+            onChange={(e) => setPhone2(e.target.value)}
+            onBlur={() => handleContactBlur('phone2', phone2)}
+            placeholder="Teléfono 2"
+            className={inputClass}
+          />
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            onBlur={() => handleContactBlur('email', email)}
+            placeholder="Email"
+            className={`${inputClass} col-span-2`}
+          />
+        </div>
+      )}
+
+      {/* Notes */}
+      <div className="relative">
+        <textarea
+          ref={textareaRef}
+          value={notes}
+          onChange={(e) => handleNotesChange(e.target.value)}
+          placeholder="Notas sobre la llamada, disponibilidad..."
+          rows={3}
+          className="w-full px-2.5 py-2 text-sm bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-md focus:outline-none focus:border-[var(--color-accent)] resize-none transition-colors overflow-hidden"
+        />
+        {saved && (
+          <span className="absolute right-2 bottom-2 text-[10px] text-[var(--color-visited-text)]">
+            Guardado
+          </span>
+        )}
+      </div>
     </div>
   );
 }

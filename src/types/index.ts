@@ -2,6 +2,8 @@ export type PropertyStatus = 'pending' | 'contacted' | 'visited' | 'favorite' | 
 
 export type CallResult = 'no_answer' | 'scheduled_visit' | 'info_received' | 'not_available' | 'other';
 
+export type RenovationType = 'no' | 'partial' | 'total';
+
 export interface Contact {
   name: string;
   phone: string;
@@ -33,13 +35,14 @@ export interface Property {
   elevator: boolean;
   yearBuilt: number;
   orientation: string;
-  needsRenovation: boolean;
+  needsRenovation: RenovationType;
   daysPublished: number;
   photos: string[];
   contact: Contact;
   status: PropertyStatus;
   notes: string;
   callNotes?: string;
+  visitChecklist?: Record<string, boolean>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -75,6 +78,12 @@ export const STATUS_COLORS: Record<PropertyStatus, string> = {
   visited: 'bg-green-100 text-green-800',
   favorite: 'bg-yellow-100 text-yellow-800',
   discarded: 'bg-red-100 text-red-800',
+};
+
+export const RENOVATION_LABELS: Record<RenovationType, string> = {
+  no: 'No necesita',
+  partial: 'Parcial',
+  total: 'Total',
 };
 
 export const CALL_RESULT_LABELS: Record<CallResult, string> = {

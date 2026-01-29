@@ -7,7 +7,3 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
-      - key: RAPIDAPI_KEY
-        sync: false
-      - key: RAPIDAPI_HOST
-        value: idealista7.p.rapidapi.com

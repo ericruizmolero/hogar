@@ -2,20 +2,27 @@ import { useState } from 'react';
 import { Calculator, ChevronDown, ChevronUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useMortgageCalculator, formatCurrency } from '../hooks/useMortgageCalculator';
+import type { RenovationType } from '../types';
+
+const RENOVATION_BUDGET: Record<RenovationType, number> = {
+  no: 0,
+  partial: 15000,
+  total: 30000,
+};
 
 interface MortgageCalculatorProps {
   propertyPrice: number;
-  needsRenovation?: boolean;
+  renovationType?: RenovationType;
 }
 
-export function MortgageCalculator({ propertyPrice, needsRenovation = false }: MortgageCalculatorProps) {
+export function MortgageCalculator({ propertyPrice, renovationType = 'no' }: MortgageCalculatorProps) {
   const [expanded, setExpanded] = useState(false);
   const [downPaymentPercent, setDownPaymentPercent] = useState(20);
 
   const { calc, verdict, loading: loadingProfile } = useMortgageCalculator({
     propertyPrice,
     downPaymentPercent,
-    renovationBudget: needsRenovation ? 30000 : 0,
+    renovationBudget: RENOVATION_BUDGET[renovationType],
   });
 
   const fmt = formatCurrency;

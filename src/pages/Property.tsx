@@ -25,24 +25,23 @@ import {
   FileCode,
   Loader2,
   ClipboardPaste,
+  ClipboardCheck,
 } from 'lucide-react';
 import { useProperties } from '../hooks/useProperties';
-import { useCalls } from '../hooks/useCalls';
 import { useReminders } from '../hooks/useReminders';
-import { CallHistory } from '../components/CallHistory';
 import { PropertyForm } from '../components/PropertyForm';
 import { ImageSlider } from '../components/ImageSlider';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
 import { Input } from '../components/ui/Input';
-import { formatPrice, formatDate } from '../lib/utils';
+import { formatPrice, formatDate, getProviderLabel } from '../lib/utils';
 import { evaluateProperty, getScoreColor, getScoreBgColor } from '../lib/requirements';
 import { LocationPicker } from '../components/LocationPicker';
 import { MortgageCalculator } from '../components/MortgageCalculator';
-import { parseIdealistaHtml } from '../lib/idealista-parser';
+import { platformRegistry, detectPlatformFromUrl } from '../lib/parsers';
 import { geocodeProperty } from '../utils/geocode';
-import type { PropertyStatus } from '../types';
-import { STATUS_LABELS } from '../types';
+import type { PropertyStatus, RenovationType } from '../types';
+import { STATUS_LABELS, RENOVATION_LABELS } from '../types';
 
 const STATUS_STYLES: Record<string, string> = {
   pending: 'bg-[var(--color-pending)] text-[var(--color-pending-text)] border-[var(--color-pending)]',
@@ -56,7 +55,6 @@ export function Property() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { properties, updateProperty, updateStatus, deleteProperty } = useProperties();
-  const { calls, addCall, deleteCall } = useCalls(id || '');
   const { addReminder } = useReminders();
 
   const [showEditForm, setShowEditForm] = useState(false);
@@ -131,8 +129,12 @@ export function Property() {
     setCompleteError('');
 
     try {
-      // Parsear HTML
-      const parsed = parseIdealistaHtml(completeHtml, property.url || '');
+      // Detectar plataforma y parsear HTML
+      const detectedPlatform = detectPlatformFromUrl(property.url || '') || 'idealista';
+      const platformDef = platformRegistry.get(detectedPlatform);
+      const parsed = platformDef
+        ? platformDef.parse(completeHtml, property.url || '')
+        : platformRegistry.get('idealista')!.parse(completeHtml, property.url || '');
 
       // Añadir teléfono manual si se proporcionó
       if (completePhone.trim()) {
@@ -180,7 +182,7 @@ export function Property() {
         elevator: parsed.elevator || false,
         parkingIncluded: parsed.parkingIncluded || false,
         parkingOptional: parsed.parkingOptional || false,
-        needsRenovation: parsed.needsRenovation || false,
+        needsRenovation: parsed.needsRenovation || 'no',
         yearBuilt: parsed.yearBuilt || 0,
         orientation: parsed.orientation || '',
         daysPublished: parsed.daysPublished || 0,
@@ -245,6 +247,43 @@ export function Property() {
           <ImageSlider images={property.photos || []} address={property.address} />
         </div>
 
+        {/* Actions */}
+        <div className="flex flex-wrap gap-2">
+          <Link to={`/visita/${property.id}`}>
+            <Button size="sm" variant="secondary">
+              <ClipboardCheck size={14} strokeWidth={1.5} className="mr-1.5" />
+              Checklist de visita
+            </Button>
+          </Link>
+          <Button size="sm" variant="secondary" onClick={() => setShowEditForm(true)}>
+            <Edit size={14} strokeWidth={1.5} className="mr-1.5" />
+            Editar
+          </Button>
+          <Button size="sm" variant="secondary" onClick={() => setShowCompleteForm(true)}>
+            <FileCode size={14} strokeWidth={1.5} className="mr-1.5" />
+            Actualizar con HTML
+          </Button>
+          <Button size="sm" variant="secondary" onClick={() => setShowReminderForm(true)}>
+            <Bell size={14} strokeWidth={1.5} className="mr-1.5" />
+            Recordatorio
+          </Button>
+          <Link to={`/compare?ids=${property.id}`}>
+            <Button size="sm" variant="secondary">
+              <GitCompare size={14} strokeWidth={1.5} className="mr-1.5" />
+              Comparar
+            </Button>
+          </Link>
+          <Button size="sm" variant="danger" onClick={() => setShowDeleteConfirm(true)}>
+            <Trash2 size={14} strokeWidth={1.5} className="mr-1.5" />
+            Eliminar
+          </Button>
+        </div>
+
+        {/* Meta */}
+        <p className="text-xs text-[var(--color-text-tertiary)]">
+          Añadida el {formatDate(property.createdAt)}
+        </p>
+
         {/* Header */}
         <div>
           <div className="flex items-start justify-between gap-4 mb-3">
@@ -287,10 +326,14 @@ export function Property() {
         </div>
 
         {/* Needs renovation alert */}
-        {property.needsRenovation && (
-          <div className="flex items-center gap-2 px-4 py-3 bg-[var(--color-favorite)] text-[var(--color-favorite-text)] rounded-md">
+        {property.needsRenovation && property.needsRenovation !== 'no' && (
+          <div className={`flex items-center gap-2 px-4 py-3 rounded-md ${
+            property.needsRenovation === 'total'
+              ? 'bg-[var(--color-discarded)] text-[var(--color-discarded-text)]'
+              : 'bg-[var(--color-favorite)] text-[var(--color-favorite-text)]'
+          }`}>
             <Wrench size={18} strokeWidth={1.5} />
-            <span className="font-medium">Necesita reforma</span>
+            <span className="font-medium">Reforma {RENOVATION_LABELS[property.needsRenovation]?.toLowerCase()}</span>
           </div>
         )}
 
@@ -428,7 +471,7 @@ export function Property() {
 
         {/* Mortgage Calculator */}
         <div className="pt-4 border-t border-[var(--color-border)]">
-          <MortgageCalculator propertyPrice={property.price} needsRenovation={property.needsRenovation} />
+          <MortgageCalculator propertyPrice={property.price} renovationType={property.needsRenovation} />
         </div>
 
         {/* Status change */}
@@ -442,6 +485,30 @@ export function Property() {
                 className={`px-3 py-1 text-sm rounded-md border transition-all ${
                   property.status === status
                     ? STATUS_STYLES[status]
+                    : 'bg-transparent text-[var(--color-text-secondary)] border-[var(--color-border)] hover:border-[var(--color-border-strong)]'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Renovation toggle */}
+        <div className="pt-4 border-t border-[var(--color-border)]">
+          <p className="text-xs text-[var(--color-text-tertiary)] mb-2">Reforma</p>
+          <div className="flex flex-wrap gap-2">
+            {(Object.entries(RENOVATION_LABELS) as [RenovationType, string][]).map(([value, label]) => (
+              <button
+                key={value}
+                onClick={() => updateProperty(property.id, { needsRenovation: value })}
+                className={`px-3 py-1 text-sm rounded-md border transition-all ${
+                  property.needsRenovation === value
+                    ? value === 'total'
+                      ? 'bg-[var(--color-discarded)] text-[var(--color-discarded-text)] border-[var(--color-discarded)]'
+                      : value === 'partial'
+                      ? 'bg-[var(--color-favorite)] text-[var(--color-favorite-text)] border-[var(--color-favorite)]'
+                      : 'bg-[var(--color-visited)] text-[var(--color-visited-text)] border-[var(--color-visited)]'
                     : 'bg-transparent text-[var(--color-text-secondary)] border-[var(--color-border)] hover:border-[var(--color-border-strong)]'
                 }`}
               >
@@ -518,45 +585,10 @@ export function Property() {
             className="inline-flex items-center gap-2 text-[var(--color-accent)] text-sm hover:underline"
           >
             <ExternalLink size={14} strokeWidth={1.5} />
-            Ver anuncio original
+            Ver en {getProviderLabel(property.url)}
           </a>
         )}
 
-        {/* Actions */}
-        <div className="pt-4 border-t border-[var(--color-border)] flex flex-wrap gap-2">
-          <Button size="sm" variant="secondary" onClick={() => setShowEditForm(true)}>
-            <Edit size={14} strokeWidth={1.5} className="mr-1.5" />
-            Editar
-          </Button>
-          <Button size="sm" variant="secondary" onClick={() => setShowCompleteForm(true)}>
-            <FileCode size={14} strokeWidth={1.5} className="mr-1.5" />
-            Actualizar con HTML
-          </Button>
-          <Button size="sm" variant="secondary" onClick={() => setShowReminderForm(true)}>
-            <Bell size={14} strokeWidth={1.5} className="mr-1.5" />
-            Recordatorio
-          </Button>
-          <Link to={`/compare?ids=${property.id}`}>
-            <Button size="sm" variant="secondary">
-              <GitCompare size={14} strokeWidth={1.5} className="mr-1.5" />
-              Comparar
-            </Button>
-          </Link>
-          <Button size="sm" variant="danger" onClick={() => setShowDeleteConfirm(true)}>
-            <Trash2 size={14} strokeWidth={1.5} className="mr-1.5" />
-            Eliminar
-          </Button>
-        </div>
-
-        {/* Meta */}
-        <p className="text-xs text-[var(--color-text-tertiary)]">
-          Añadida el {formatDate(property.createdAt)}
-        </p>
-
-        {/* Call history */}
-        <div className="pt-4">
-          <CallHistory calls={calls} onAddCall={addCall} onDeleteCall={deleteCall} />
-        </div>
       </div>
 
       {/* Modals */}

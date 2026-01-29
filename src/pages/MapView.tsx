@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useProperties } from '../hooks/useProperties';
+import { Select } from '../components/ui/Select';
 import { STATUS_LABELS } from '../types';
 import type { Property } from '../types';
 
@@ -219,21 +220,18 @@ export function MapView() {
         {zones.length > 1 && (
           <div className="flex items-center gap-2">
             <span className="text-xs text-[var(--color-text-tertiary)]">Barrio:</span>
-            <select
+            <Select
+              size="sm"
               value={zoneFilter}
               onChange={(e) => setZoneFilter(e.target.value)}
-              className="text-xs px-2 py-1 rounded-md border border-[var(--color-border)] bg-white text-[var(--color-text)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
-            >
-              <option value="all">Todos ({propertiesWithCoords.length})</option>
-              {zones.map(zone => {
-                const count = propertiesWithCoords.filter(p => extractNeighborhood(p) === zone).length;
-                return (
-                  <option key={zone} value={zone}>
-                    {zone} ({count})
-                  </option>
-                );
-              })}
-            </select>
+              options={[
+                { value: 'all', label: `Todos (${propertiesWithCoords.length})` },
+                ...zones.map(zone => ({
+                  value: zone,
+                  label: `${zone} (${propertiesWithCoords.filter(p => extractNeighborhood(p) === zone).length})`,
+                })),
+              ]}
+            />
           </div>
         )}
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Servidor API para scraping de Idealista
+Servidor API para Hogar
 Ejecutar: python api/server.py
 """
 
@@ -18,10 +18,6 @@ from datetime import datetime
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 app = Flask(__name__)
-
-# Configuración de RapidAPI para Idealista
-RAPIDAPI_KEY = os.getenv('RAPIDAPI_KEY', 'c0b7375685msh3455479520e750bp1c2437jsn4a756cf35371')
-RAPIDAPI_HOST = os.getenv('RAPIDAPI_HOST', 'idealista7.p.rapidapi.com')
 
 # Configurar CORS para permitir requests desde el frontend
 CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=False)
@@ -363,26 +359,59 @@ def download_photos():
     })
 
 
+## Dominios permitidos para el proxy de imágenes (uno por plataforma)
+ALLOWED_IMAGE_DOMAINS = [
+    'idealista.com',
+    'fotocasa.es',
+    'pisos.com',
+    'habitaclia.com',
+    'apinmo.com',
+    'engelvoelkers.com',
+    'ucarecdn.com',
+    'inmotek.net',
+]
+
+## Referer dinámico por plataforma
+DOMAIN_REFERERS = {
+    'idealista.com': 'https://www.idealista.com/',
+    'fotocasa.es': 'https://www.fotocasa.es/',
+    'pisos.com': 'https://www.pisos.com/',
+    'habitaclia.com': 'https://www.habitaclia.com/',
+    'apinmo.com': 'https://www.grupotome.com/',
+    'engelvoelkers.com': 'https://www.engelvoelkers.com/',
+    'ucarecdn.com': 'https://www.engelvoelkers.com/',
+    'inmotek.net': 'https://www.areizaga.com/',
+}
+
+def is_allowed_domain(url):
+    return any(domain in url for domain in ALLOWED_IMAGE_DOMAINS)
+
+def get_referer_for_url(url):
+    for domain, referer in DOMAIN_REFERERS.items():
+        if domain in url:
+            return referer
+    return ''
+
+
 @app.route('/api/image-proxy')
 def image_proxy():
-    """Proxy para cargar imágenes de Idealista con las cabeceras correctas"""
+    """Proxy para cargar imágenes de plataformas inmobiliarias con las cabeceras correctas"""
     image_url = request.args.get('url')
     if not image_url:
         return 'Missing url parameter', 400
 
-    # Solo permitir imágenes de idealista
-    if 'idealista.com' not in image_url:
-        return 'Only idealista images allowed', 403
+    if not is_allowed_domain(image_url):
+        return 'Domain not allowed', 403
 
     try:
         headers = {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Referer': 'https://www.idealista.com/',
+            'Referer': get_referer_for_url(image_url),
             'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8',
         }
 
-        # Si es una URL de página de foto (/inmueble/XXX/foto/N/), extraer la imagen real
-        if '/inmueble/' in image_url and '/foto/' in image_url:
+        # Idealista: si es una URL de página de foto (/inmueble/XXX/foto/N/), extraer la imagen real
+        if 'idealista.com' in image_url and '/inmueble/' in image_url and '/foto/' in image_url:
             response = requests.get(image_url, headers=headers, timeout=10)
             if response.status_code == 200:
                 soup = BeautifulSoup(response.text, 'html.parser')
@@ -462,403 +491,6 @@ def scrape_property():
             'url': '',
             'error': 'Idealista bloquea el scraping automático. Usa la opción de pegar HTML.'
         }]
-    })
-
-
-# ============================================================
-# ENDPOINTS DE API IDEALISTA (RapidAPI)
-# ============================================================
-
-@app.route('/api/idealista/search', methods=['GET', 'POST'])
-def idealista_search():
-    """
-    Buscar propiedades en Idealista usando RapidAPI.
-
-    Query params o JSON body:
-        - locationId: ID de ubicación (default: '0-EU-ES-28-07-001-079' para Madrid)
-        - locationName: Nombre de la ubicación (default: 'Madrid')
-        - operation: 'sale' o 'rent' (default: 'sale')
-        - order: 'relevance', 'price', 'date', 'size' (default: 'relevance')
-        - numPage: Número de página (default: 1)
-        - maxItems: Resultados por página (default: 40)
-        - minPrice: Precio mínimo
-        - maxPrice: Precio máximo
-        - minSize: Tamaño mínimo en m2
-        - maxSize: Tamaño máximo en m2
-        - bedrooms: Número de habitaciones
-    """
-    # Obtener parámetros de query string o JSON body
-    if request.method == 'POST':
-        data = request.get_json() or {}
-    else:
-        data = request.args.to_dict()
-
-    # Construir parámetros para la API
-    # Nota: maxItems solo acepta ciertos valores (20, 40, 60)
-    max_items = int(data.get('maxItems', 40))
-    valid_max_items = [20, 40, 60]
-    if max_items not in valid_max_items:
-        max_items = 40  # Valor por defecto si no es válido
-
-    params = {
-        'order': data.get('order', 'relevance'),
-        'operation': data.get('operation', 'sale'),
-        'locationId': data.get('locationId', '0-EU-ES-28-07-001-079'),
-        'locationName': data.get('locationName', 'Madrid'),
-        'numPage': data.get('numPage', 1),
-        'maxItems': max_items,
-        'location': 'es',
-        'locale': 'es',
-    }
-
-    # Agregar filtros opcionales
-    optional_params = ['minPrice', 'maxPrice', 'minSize', 'maxSize', 'bedrooms']
-    for param in optional_params:
-        if param in data and data[param]:
-            params[param] = data[param]
-
-    headers = {
-        'X-RapidAPI-Key': RAPIDAPI_KEY,
-        'X-RapidAPI-Host': RAPIDAPI_HOST
-    }
-
-    try:
-        url = f"https://{RAPIDAPI_HOST}/listhomes"
-        response = requests.get(url, headers=headers, params=params, timeout=30)
-        response.raise_for_status()
-
-        api_data = response.json()
-
-        # Formatear las propiedades para el frontend
-        properties = []
-        raw_properties = api_data.get('elementList', api_data.get('elements', api_data.get('properties', [])))
-
-        if isinstance(api_data, list):
-            raw_properties = api_data
-
-        for prop in raw_properties:
-            price = prop.get('price', 0)
-            size = prop.get('size', prop.get('surface', 0))
-
-            formatted = {
-                'id': prop.get('propertyCode', prop.get('id', '')),
-                'title': prop.get('title', prop.get('propertyName', 'Sin titulo')),
-                'price': price,
-                'squareMeters': size,
-                'pricePerMeter': round(price / size, 2) if size > 0 else 0,
-                'rooms': prop.get('rooms', prop.get('bedrooms', 0)),
-                'bathrooms': prop.get('bathrooms', 0),
-                'address': prop.get('address', prop.get('location', '')),
-                'district': prop.get('district', prop.get('neighborhood', '')),
-                'municipality': prop.get('municipality', prop.get('city', '')),
-                'province': prop.get('province', ''),
-                'floor': prop.get('floor', ''),
-                'exterior': prop.get('exterior', prop.get('isExterior', False)),
-                'elevator': prop.get('hasLift', prop.get('elevator', False)),
-                'parking': prop.get('parkingSpace', prop.get('hasParking', False)),
-                'url': prop.get('url', prop.get('link', '')),
-                'thumbnail': prop.get('thumbnail', prop.get('image', prop.get('mainImage', ''))),
-                'description': (prop.get('description', prop.get('comments', '')) or '')[:500],
-                'latitude': prop.get('latitude'),
-                'longitude': prop.get('longitude'),
-                'photos': [],
-            }
-
-            # Extraer fotos si están disponibles
-            multimedia = prop.get('multimedia', {})
-            if isinstance(multimedia, dict):
-                images = multimedia.get('images', [])
-                if images:
-                    formatted['photos'] = [img.get('url', img) if isinstance(img, dict) else img for img in images]
-
-            properties.append(formatted)
-
-        return jsonify({
-            'success': True,
-            'total': api_data.get('total', len(properties)),
-            'totalPages': api_data.get('totalPages', 1),
-            'currentPage': int(params['numPage']),
-            'properties': properties
-        })
-
-    except requests.exceptions.RequestException as e:
-        error_msg = str(e)
-        status_code = 500
-
-        if hasattr(e, 'response') and e.response is not None:
-            status_code = e.response.status_code
-            try:
-                error_msg = e.response.json().get('message', error_msg)
-            except:
-                error_msg = e.response.text[:500]
-
-        return jsonify({
-            'success': False,
-            'error': error_msg
-        }), status_code
-
-
-@app.route('/api/idealista/property/<property_code>', methods=['GET'])
-def idealista_property_details(property_code):
-    """
-    Obtener detalles de una propiedad específica de Idealista.
-
-    Path params:
-        - property_code: Código de la propiedad en Idealista
-    """
-    headers = {
-        'X-RapidAPI-Key': RAPIDAPI_KEY,
-        'X-RapidAPI-Host': RAPIDAPI_HOST
-    }
-
-    try:
-        url = f"https://{RAPIDAPI_HOST}/property/{property_code}"
-        response = requests.get(url, headers=headers, timeout=30)
-        response.raise_for_status()
-
-        prop = response.json()
-
-        if not prop:
-            return jsonify({
-                'success': False,
-                'error': 'Propiedad no encontrada'
-            }), 404
-
-        return jsonify({
-            'success': True,
-            'property': prop
-        })
-
-    except requests.exceptions.RequestException as e:
-        error_msg = str(e)
-        status_code = 500
-
-        if hasattr(e, 'response') and e.response is not None:
-            status_code = e.response.status_code
-            if status_code == 404:
-                return jsonify({
-                    'success': False,
-                    'error': 'Propiedad no encontrada'
-                }), 404
-
-        return jsonify({
-            'success': False,
-            'error': error_msg
-        }), status_code
-
-
-@app.route('/api/idealista/import-url', methods=['POST'])
-def idealista_import_url():
-    """
-    Importa una propiedad de Idealista por su URL.
-    Busca el ID de la propiedad en los resultados de la API.
-
-    Body: { "url": "https://www.idealista.com/inmueble/123456/" }
-    """
-    data = request.get_json() or {}
-    url = data.get('url', '')
-
-    if not url:
-        return jsonify({'success': False, 'error': 'URL requerida'}), 400
-
-    # Extraer el ID del inmueble de la URL
-    id_match = re.search(r'inmueble/(\d+)', url)
-    if not id_match:
-        return jsonify({'success': False, 'error': 'URL no válida. Debe ser de idealista.com/inmueble/...'}), 400
-
-    property_id = id_match.group(1)
-
-    # Intentar extraer la ciudad de la URL si está disponible
-    # Formato: /inmueble/123456/ o /venta-viviendas/madrid/...
-    # Default: San Sebastián / Guipúzcoa
-    location_name = 'Guipuzcoa'
-    location_id = '0-EU-ES-20'
-
-    # Mapeo de ciudades
-    city_mapping = {
-        'san-sebastian': ('0-EU-ES-20', 'Guipuzcoa'),
-        'san sebastian': ('0-EU-ES-20', 'Guipuzcoa'),
-        'donostia': ('0-EU-ES-20', 'Guipuzcoa'),
-        'guipuzcoa': ('0-EU-ES-20', 'Guipuzcoa'),
-        'gipuzkoa': ('0-EU-ES-20', 'Guipuzcoa'),
-        'madrid': ('0-EU-ES-28-07-001-079', 'Madrid'),
-        'barcelona': ('0-EU-ES-08-08-001-019', 'Barcelona'),
-        'valencia': ('0-EU-ES-46-46-001-250', 'Valencia'),
-        'sevilla': ('0-EU-ES-41-41-001-091', 'Sevilla'),
-        'zaragoza': ('0-EU-ES-50-50-001-297', 'Zaragoza'),
-        'malaga': ('0-EU-ES-29-29-001-067', 'Malaga'),
-        'bilbao': ('0-EU-ES-48', 'Vizcaya'),
-        'vizcaya': ('0-EU-ES-48', 'Vizcaya'),
-        'alicante': ('0-EU-ES-03-03-001-014', 'Alicante'),
-    }
-
-    # Intentar detectar ciudad de la URL
-    url_lower = url.lower()
-    for city, (city_id, city_name) in city_mapping.items():
-        if city in url_lower:
-            location_id = city_id
-            location_name = city_name
-            break
-
-    headers = {
-        'X-RapidAPI-Key': RAPIDAPI_KEY,
-        'X-RapidAPI-Host': RAPIDAPI_HOST
-    }
-
-    # Buscar en varias páginas hasta encontrar la propiedad
-    found_property = None
-    max_pages = 15  # Buscar en hasta 15 páginas (600 propiedades)
-
-    for page in range(1, max_pages + 1):
-        try:
-            api_url = f"https://{RAPIDAPI_HOST}/listhomes"
-            params = {
-                'order': 'relevance',
-                'operation': 'sale',
-                'locationId': location_id,
-                'locationName': location_name,
-                'numPage': page,
-                'maxItems': 40,
-                'location': 'es',
-                'locale': 'es',
-            }
-
-            response = requests.get(api_url, headers=headers, params=params, timeout=30)
-            response.raise_for_status()
-            api_data = response.json()
-
-            # Buscar en los resultados
-            properties = api_data.get('elementList', api_data.get('elements', []))
-
-            for prop in properties:
-                prop_code = str(prop.get('propertyCode', prop.get('id', '')))
-                if prop_code == property_id:
-                    found_property = prop
-                    break
-
-            if found_property:
-                break
-
-            # Si no hay más páginas, salir
-            total_pages = api_data.get('totalPages', 1)
-            if page >= total_pages:
-                break
-
-        except Exception as e:
-            print(f"Error buscando en página {page}: {e}")
-            continue
-
-    if not found_property:
-        # Si no encontramos la propiedad, intentar búsqueda de alquiler
-        for page in range(1, 3):  # Solo 2 páginas para alquiler
-            try:
-                api_url = f"https://{RAPIDAPI_HOST}/listhomes"
-                params = {
-                    'order': 'relevance',
-                    'operation': 'rent',
-                    'locationId': location_id,
-                    'locationName': location_name,
-                    'numPage': page,
-                    'maxItems': 40,
-                    'location': 'es',
-                    'locale': 'es',
-                }
-
-                response = requests.get(api_url, headers=headers, params=params, timeout=30)
-                response.raise_for_status()
-                api_data = response.json()
-
-                properties = api_data.get('elementList', api_data.get('elements', []))
-
-                for prop in properties:
-                    prop_code = str(prop.get('propertyCode', prop.get('id', '')))
-                    if prop_code == property_id:
-                        found_property = prop
-                        break
-
-                if found_property:
-                    break
-
-            except Exception as e:
-                continue
-
-    if not found_property:
-        return jsonify({
-            'success': False,
-            'error': 'Propiedad no encontrada. Prueba el modo "Completo" pegando el HTML de la página.',
-            'propertyId': property_id
-        }), 404
-
-    # Formatear la propiedad encontrada
-    price = found_property.get('price', 0)
-    size = found_property.get('size', found_property.get('surface', 0))
-
-    formatted = {
-        'id': found_property.get('propertyCode', found_property.get('id', '')),
-        'url': url,
-        'title': found_property.get('title', found_property.get('propertyName', f'Piso en {location_name}')),
-        'price': price,
-        'squareMeters': size,
-        'pricePerMeter': round(price / size, 2) if size > 0 else 0,
-        'rooms': found_property.get('rooms', found_property.get('bedrooms', 0)),
-        'bathrooms': found_property.get('bathrooms', 0),
-        'address': found_property.get('address', found_property.get('location', '')),
-        'zone': found_property.get('district', found_property.get('neighborhood', '')),
-        'district': found_property.get('district', found_property.get('neighborhood', '')),
-        'municipality': found_property.get('municipality', found_property.get('city', '')),
-        'province': found_property.get('province', ''),
-        'floor': str(found_property.get('floor', '')),
-        'exterior': found_property.get('exterior', found_property.get('isExterior', False)),
-        'elevator': found_property.get('hasLift', found_property.get('elevator', False)),
-        'parking': found_property.get('parkingSpace', found_property.get('hasParking', False)),
-        'parkingIncluded': found_property.get('parkingIncluded', found_property.get('hasParkingSpace', False)),
-        'terrace': found_property.get('hasTerrace', False),
-        'description': (found_property.get('description', found_property.get('comments', '')) or ''),
-        'latitude': found_property.get('latitude'),
-        'longitude': found_property.get('longitude'),
-        'photos': [],
-    }
-
-    # Extraer fotos
-    multimedia = found_property.get('multimedia', {})
-    if isinstance(multimedia, dict):
-        images = multimedia.get('images', [])
-        if images:
-            formatted['photos'] = [img.get('url', img) if isinstance(img, dict) else img for img in images]
-    elif found_property.get('images'):
-        formatted['photos'] = found_property.get('images', [])
-
-    # Si no hay fotos pero hay thumbnail, usarlo
-    if not formatted['photos'] and found_property.get('thumbnail'):
-        formatted['photos'] = [found_property.get('thumbnail')]
-
-    return jsonify({
-        'success': True,
-        'property': formatted
-    })
-
-
-@app.route('/api/idealista/locations', methods=['GET'])
-def idealista_locations():
-    """
-    Devuelve una lista de ubicaciones predefinidas de Idealista.
-    """
-    locations = [
-        {'id': '0-EU-ES-28-07-001-079', 'name': 'Madrid', 'type': 'city'},
-        {'id': '0-EU-ES-08-08-001-019', 'name': 'Barcelona', 'type': 'city'},
-        {'id': '0-EU-ES-46-46-001-250', 'name': 'Valencia', 'type': 'city'},
-        {'id': '0-EU-ES-41-41-001-091', 'name': 'Sevilla', 'type': 'city'},
-        {'id': '0-EU-ES-50-50-001-297', 'name': 'Zaragoza', 'type': 'city'},
-        {'id': '0-EU-ES-29-29-001-067', 'name': 'Malaga', 'type': 'city'},
-        {'id': '0-EU-ES-48-48-001-020', 'name': 'Bilbao', 'type': 'city'},
-        {'id': '0-EU-ES-03-03-001-014', 'name': 'Alicante', 'type': 'city'},
-        {'id': '0-EU-ES-30-30-001-030', 'name': 'Murcia', 'type': 'city'},
-        {'id': '0-EU-ES-07-07-001-040', 'name': 'Palma de Mallorca', 'type': 'city'},
-    ]
-
-    return jsonify({
-        'success': True,
-        'locations': locations
     })
 
 

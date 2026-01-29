@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { FileCode, Loader2, CheckCircle, XCircle, HelpCircle, MapPin, ClipboardPaste, Smartphone, Zap } from 'lucide-react';
+import { FileCode, Loader2, CheckCircle, XCircle, HelpCircle, MapPin, ClipboardPaste } from 'lucide-react';
 import { Button } from './ui/Button';
+import { Select } from './ui/Select';
 import { Modal } from './ui/Modal';
 import { geocodeProperty } from '../utils/geocode';
-import { parseIdealistaHtml } from '../lib/idealista-parser';
-import { importPropertyByUrl } from '../lib/idealista-api';
+import { platformRegistry, getPlatformOptions } from '../lib/parsers';
 import type { Property } from '../types';
 
 interface ImportModalProps {
@@ -14,12 +14,9 @@ interface ImportModalProps {
 }
 
 export function ImportModal({ isOpen, onClose, onImport }: ImportModalProps) {
-  // En móvil, modo rápido por defecto
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
-  const [mode, setMode] = useState<'full' | 'quick'>(isMobile ? 'quick' : 'full');
+  const [platform, setPlatform] = useState('idealista');
   const [html, setHtml] = useState('');
   const [phone, setPhone] = useState('');
-  const [quickUrl, setQuickUrl] = useState('');
   const [result, setResult] = useState<Partial<Property> | null>(null);
   const [error, setError] = useState('');
   const [importing, setImporting] = useState(false);
@@ -58,8 +55,14 @@ export function ImportModal({ isOpen, onClose, onImport }: ImportModalProps) {
     setResult(null);
 
     try {
-      // Usar parser local
-      const parsed = parseIdealistaHtml(html, '');
+      // Usar parser de la plataforma seleccionada
+      const platformDef = platformRegistry.get(platform);
+      if (!platformDef) {
+        setError('Plataforma no soportada');
+        setImporting(false);
+        return;
+      }
+      const parsed = platformDef.parse(html, '');
 
       // Añadir teléfono manual si se proporcionó
       if (phone.trim()) {
@@ -113,7 +116,7 @@ export function ImportModal({ isOpen, onClose, onImport }: ImportModalProps) {
         elevator: result.elevator || false,
         yearBuilt: result.yearBuilt || 0,
         orientation: result.orientation || '',
-        needsRenovation: result.needsRenovation || false,
+        needsRenovation: result.needsRenovation || 'no',
         daysPublished: result.daysPublished || 0,
         photos: result.photos || [],
         contact: result.contact || { name: '', phone: '', email: '', agency: '' },
@@ -129,98 +132,10 @@ export function ImportModal({ isOpen, onClose, onImport }: ImportModalProps) {
     }
   };
 
-  const handleQuickSave = async () => {
-    if (!quickUrl.trim()) {
-      setError('Pega la URL del piso');
-      return;
-    }
-
-    if (!quickUrl.includes('idealista.com')) {
-      setError('La URL debe ser de idealista.com');
-      return;
-    }
-
-    setSaving(true);
-    setError('');
-
-    try {
-      // Intentar obtener datos de la API
-      const apiResult = await importPropertyByUrl(quickUrl.trim());
-
-      if (apiResult.success && apiResult.property) {
-        const prop = apiResult.property;
-
-        // Guardar URLs de fotos directamente (se cargan via proxy)
-        // Esto evita ocupar espacio en la base de datos
-        const photos = prop.photos || [];
-
-        // Geocodificar si no hay coordenadas
-        let latitude = prop.latitude;
-        let longitude = prop.longitude;
-        if (!latitude || !longitude) {
-          const coords = await geocodeProperty(
-            prop.address || '',
-            prop.title || '',
-            prop.zone || '',
-            prop.description || ''
-          );
-          if (coords) {
-            latitude = coords.lat;
-            longitude = coords.lon;
-          }
-        }
-
-        await onImport([{
-          url: quickUrl.trim(),
-          title: prop.title || `Piso en ${prop.district || prop.municipality || 'Madrid'}`,
-          zone: prop.zone || prop.district || '',
-          address: prop.address || '',
-          latitude,
-          longitude,
-          price: prop.price || 0,
-          pricePerMeter: prop.pricePerMeter || 0,
-          builtSquareMeters: prop.squareMeters || 0,
-          usableSquareMeters: 0,
-          squareMeters: prop.squareMeters || 0,
-          rooms: prop.rooms || 0,
-          floor: prop.floor || '',
-          bathrooms: prop.bathrooms || 0,
-          terrace: prop.terrace || false,
-          balcony: false,
-          parkingIncluded: prop.parkingIncluded || prop.parking || false,
-          parkingOptional: false,
-          elevator: prop.elevator || false,
-          yearBuilt: 0,
-          orientation: '',
-          needsRenovation: false,
-          daysPublished: 0,
-          photos,
-          contact: { name: '', phone: '', email: '', agency: '' },
-          notes: prop.description || '',
-          status: 'pending' as const,
-        }]);
-
-        setQuickUrl('');
-        handleClose();
-      } else {
-        // Si la API no encuentra la propiedad, sugerir usar modo Completo
-        setError('Propiedad no encontrada en la API. Usa el modo "Completo" para importar pegando el HTML de la página.');
-        setSaving(false);
-        return;
-      }
-    } catch (err) {
-      setError('Error al conectar con la API. Verifica que el servidor esté corriendo o usa el modo "Completo".');
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const handleClose = () => {
-    const isMobileNow = window.innerWidth < 640;
-    setMode(isMobileNow ? 'quick' : 'full');
+    setPlatform('idealista');
     setHtml('');
     setPhone('');
-    setQuickUrl('');
     setResult(null);
     setError('');
     setCoordinates(null);
@@ -228,205 +143,106 @@ export function ImportModal({ isOpen, onClose, onImport }: ImportModalProps) {
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="Importar desde Idealista">
+    <Modal isOpen={isOpen} onClose={handleClose} title="Importar propiedad">
       <div className="space-y-4">
         {!result ? (
           <>
-            {/* Mode selector tabs - en móvil "Rápido" primero */}
-            <div className="flex border-b border-[var(--color-border)]">
-              {/* Rápido - primero en móvil */}
-              <button
-                onClick={() => { setMode('quick'); setError(''); }}
-                className={`flex sm:order-2 items-center gap-2 px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
-                  mode === 'quick'
-                    ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
-                    : 'border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text)]'
-                }`}
-              >
-                <Smartphone size={16} />
-                Rápido
-              </button>
-              {/* Completo - primero en desktop */}
-              <button
-                onClick={() => { setMode('full'); setError(''); }}
-                className={`flex sm:order-1 items-center gap-2 px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
-                  mode === 'full'
-                    ? 'border-[var(--color-accent)] text-[var(--color-accent)]'
-                    : 'border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text)]'
-                }`}
-              >
-                <FileCode size={16} />
-                Completo
-              </button>
+            {/* Selector de plataforma */}
+            <Select
+              label="Plataforma"
+              value={platform}
+              onChange={(e) => setPlatform(e.target.value)}
+              options={getPlatformOptions()}
+            />
+
+            <div className="bg-[var(--color-contacted)] text-[var(--color-contacted-text)] p-3 rounded-lg text-sm">
+              <div className="flex items-start gap-2">
+                <HelpCircle size={18} className="flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium mb-1">Cómo importar:</p>
+                  <ol className="list-decimal list-inside space-y-1 text-xs">
+                    <li>Abre la propiedad en <strong>{platformRegistry.get(platform)?.label || 'la plataforma'}</strong></li>
+                    <li>Haz clic en <strong>"Ver teléfono"</strong></li>
+                    <li>Clic derecho → <strong>Inspeccionar</strong> (F12)</li>
+                    <li>Clic derecho en <code className="bg-[var(--color-bg)] px-1 rounded">&lt;html&gt;</code> → Copiar → Copiar elemento</li>
+                    <li>Pega el HTML aquí abajo</li>
+                  </ol>
+                  <p className="mt-2 text-xs opacity-80">
+                    Si el teléfono no se detecta, pégalo manualmente en el campo de teléfono.
+                  </p>
+                </div>
+              </div>
             </div>
 
-            {mode === 'quick' ? (
-              /* Quick add mode - API import */
-              <>
-                <div className="bg-[var(--color-visited)] text-[var(--color-visited-text)] p-3 rounded-lg text-sm">
-                  <div className="flex items-start gap-2">
-                    <Zap size={18} className="flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-medium mb-1">Importar con datos automáticos</p>
-                      <p className="text-xs opacity-80">
-                        Pega la URL y obtendremos precio, fotos, ubicación y más datos automáticamente.
-                      </p>
-                    </div>
-                  </div>
-                </div>
+            <div>
+              <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
+                Teléfono <span className="font-normal opacity-70">(si no se detecta)</span>
+              </label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="612 345 678"
+                className="w-full px-3 py-2 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:border-[var(--color-accent)] text-sm"
+              />
+            </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
-                    URL de Idealista
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="url"
-                      value={quickUrl}
-                      onChange={(e) => setQuickUrl(e.target.value)}
-                      placeholder="https://www.idealista.com/inmueble/..."
-                      className="flex-1 px-3 py-2 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:border-[var(--color-accent)] text-sm"
-                    />
-                    <button
-                      onClick={async () => {
-                        try {
-                          const text = await navigator.clipboard.readText();
-                          setQuickUrl(text);
-                        } catch {
-                          setError('No se pudo acceder al portapapeles');
-                        }
-                      }}
-                      className="px-3 py-2 bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-lg hover:bg-[var(--color-bg-hover)] transition-colors"
-                      title="Pegar"
-                    >
-                      <ClipboardPaste size={16} />
-                    </button>
-                  </div>
-                </div>
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-sm font-medium text-[var(--color-text-secondary)]">
+                  HTML de la página
+                </label>
+                <button
+                  onClick={handlePasteFromClipboard}
+                  className="flex items-center gap-1 text-xs text-[var(--color-accent)] hover:underline"
+                >
+                  <ClipboardPaste size={12} />
+                  Pegar del portapapeles
+                </button>
+              </div>
+              <textarea
+                value={html}
+                onChange={(e) => setHtml(e.target.value)}
+                placeholder="Pega aquí el código HTML de la página..."
+                className="w-full h-40 px-3 py-2 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:border-[var(--color-accent)] text-sm font-mono resize-none"
+                disabled={importing}
+              />
+              {html && (
+                <p className="text-xs text-[var(--color-text-tertiary)] mt-1">
+                  {html.length.toLocaleString()} caracteres
+                </p>
+              )}
+            </div>
 
-                {error && (
-                  <div className="bg-[var(--color-discarded)] text-[var(--color-discarded-text)] p-3 rounded-lg text-sm flex items-center gap-2">
-                    <XCircle size={16} />
-                    {error}
-                  </div>
-                )}
-
-                <div className="flex gap-3">
-                  <Button
-                    onClick={handleQuickSave}
-                    disabled={saving || !quickUrl.trim()}
-                    className="flex-1"
-                  >
-                    {saving ? (
-                      <>
-                        <Loader2 size={18} className="mr-2 animate-spin" />
-                        Obteniendo datos...
-                      </>
-                    ) : (
-                      <>
-                        <Zap size={18} className="mr-2" />
-                        Importar propiedad
-                      </>
-                    )}
-                  </Button>
-                  <Button variant="secondary" onClick={handleClose}>
-                    Cancelar
-                  </Button>
-                </div>
-              </>
-            ) : (
-              /* Full import mode - HTML paste */
-              <>
-                <div className="bg-[var(--color-contacted)] text-[var(--color-contacted-text)] p-3 rounded-lg text-sm">
-                  <div className="flex items-start gap-2">
-                    <HelpCircle size={18} className="flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-medium mb-1">Cómo importar:</p>
-                      <ol className="list-decimal list-inside space-y-1 text-xs">
-                        <li>Abre la propiedad en Idealista</li>
-                        <li>Haz clic en <strong>"Ver teléfono"</strong></li>
-                        <li>Clic derecho → <strong>Inspeccionar</strong> (F12)</li>
-                        <li>Clic derecho en <code className="bg-[var(--color-bg)] px-1 rounded">&lt;html&gt;</code> → Copiar → Copiar elemento</li>
-                        <li>Pega el HTML aquí abajo</li>
-                      </ol>
-                      <p className="mt-2 text-xs opacity-80">
-                        Si el teléfono no se detecta, pégalo manualmente en el campo de teléfono.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">
-                    Teléfono <span className="font-normal opacity-70">(si no se detecta)</span>
-                  </label>
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="612 345 678"
-                    className="w-full px-3 py-2 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:border-[var(--color-accent)] text-sm"
-                  />
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-sm font-medium text-[var(--color-text-secondary)]">
-                      HTML de la página
-                    </label>
-                    <button
-                      onClick={handlePasteFromClipboard}
-                      className="flex items-center gap-1 text-xs text-[var(--color-accent)] hover:underline"
-                    >
-                      <ClipboardPaste size={12} />
-                      Pegar del portapapeles
-                    </button>
-                  </div>
-                  <textarea
-                    value={html}
-                    onChange={(e) => setHtml(e.target.value)}
-                    placeholder="Pega aquí el código HTML de la página..."
-                    className="w-full h-40 px-3 py-2 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg focus:outline-none focus:border-[var(--color-accent)] text-sm font-mono resize-none"
-                    disabled={importing}
-                  />
-                  {html && (
-                    <p className="text-xs text-[var(--color-text-tertiary)] mt-1">
-                      {html.length.toLocaleString()} caracteres
-                    </p>
-                  )}
-                </div>
-
-                {error && (
-                  <div className="bg-[var(--color-discarded)] text-[var(--color-discarded-text)] p-3 rounded-lg text-sm flex items-center gap-2">
-                    <XCircle size={16} />
-                    {error}
-                  </div>
-                )}
-
-                <div className="flex gap-3">
-                  <Button
-                    onClick={handleParse}
-                    disabled={importing || !html.trim()}
-                    className="flex-1"
-                  >
-                    {importing ? (
-                      <>
-                        <Loader2 size={18} className="mr-2 animate-spin" />
-                        Procesando...
-                      </>
-                    ) : (
-                      <>
-                        <FileCode size={18} className="mr-2" />
-                        Extraer datos
-                      </>
-                    )}
-                  </Button>
-                  <Button variant="secondary" onClick={handleClose}>
-                    Cancelar
-                  </Button>
-                </div>
-              </>
+            {error && (
+              <div className="bg-[var(--color-discarded)] text-[var(--color-discarded-text)] p-3 rounded-lg text-sm flex items-center gap-2">
+                <XCircle size={16} />
+                {error}
+              </div>
             )}
+
+            <div className="flex gap-3">
+              <Button
+                onClick={handleParse}
+                disabled={importing || !html.trim()}
+                className="flex-1"
+              >
+                {importing ? (
+                  <>
+                    <Loader2 size={18} className="mr-2 animate-spin" />
+                    Procesando...
+                  </>
+                ) : (
+                  <>
+                    <FileCode size={18} className="mr-2" />
+                    Extraer datos
+                  </>
+                )}
+              </Button>
+              <Button variant="secondary" onClick={handleClose}>
+                Cancelar
+              </Button>
+            </div>
           </>
         ) : (
           <>
@@ -494,7 +310,11 @@ export function ImportModal({ isOpen, onClose, onImport }: ImportModalProps) {
                   {result.elevator && <span className="bg-[var(--color-bg)] text-[var(--color-text-secondary)] px-2 py-0.5 rounded text-xs">Ascensor</span>}
                   {result.parkingIncluded && <span className="bg-[var(--color-bg)] text-[var(--color-visited-text)] px-2 py-0.5 rounded text-xs">Garaje incluido</span>}
                   {result.parkingOptional && <span className="bg-[var(--color-bg)] text-[var(--color-favorite-text)] px-2 py-0.5 rounded text-xs">Garaje opcional</span>}
-                  {result.needsRenovation && <span className="bg-[var(--color-bg)] text-[var(--color-favorite-text)] px-2 py-0.5 rounded text-xs">Necesita reforma</span>}
+                  {result.needsRenovation && result.needsRenovation !== 'no' && (
+                    <span className="bg-[var(--color-bg)] text-[var(--color-favorite-text)] px-2 py-0.5 rounded text-xs">
+                      Reforma {result.needsRenovation === 'total' ? 'total' : 'parcial'}
+                    </span>
+                  )}
                 </div>
 
                 {/* Contacto */}

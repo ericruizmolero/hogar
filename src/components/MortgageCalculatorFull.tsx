@@ -1,11 +1,19 @@
 import { useState } from 'react';
 import { HelpCircle, Check, X, Settings } from 'lucide-react';
+import { Select } from './ui/Select';
 import { Link } from 'react-router-dom';
 import { useMortgageCalculator, formatCurrency } from '../hooks/useMortgageCalculator';
+import type { RenovationType } from '../types';
+
+const RENOVATION_BUDGET: Record<RenovationType, number> = {
+  no: 0,
+  partial: 15000,
+  total: 30000,
+};
 
 interface MortgageCalculatorFullProps {
   propertyPrice: number;
-  needsRenovation?: boolean;
+  renovationType?: RenovationType;
 }
 
 function Tip({ children }: { children: React.ReactNode }) {
@@ -30,7 +38,7 @@ function SectionTitle({ children, step }: { children: React.ReactNode; step: num
   );
 }
 
-export function MortgageCalculatorFull({ propertyPrice, needsRenovation = false }: MortgageCalculatorFullProps) {
+export function MortgageCalculatorFull({ propertyPrice, renovationType = 'no' }: MortgageCalculatorFullProps) {
   // Aportación extra para reducir hipoteca (no cuenta para el 50/50)
   const [extra1, setExtra1] = useState(0);
   const [extra2, setExtra2] = useState(0);
@@ -46,7 +54,7 @@ export function MortgageCalculatorFull({ propertyPrice, needsRenovation = false 
   const [itpReduced, setItpReduced] = useState(false);
 
   // Reforma
-  const [renovationBudget, setRenovationBudget] = useState(needsRenovation ? 30000 : 0);
+  const [renovationBudget, setRenovationBudget] = useState(RENOVATION_BUDGET[renovationType]);
 
   // Usar el hook de cálculo
   const { calc, loading: loadingProfile, profile } = useMortgageCalculator({
@@ -170,14 +178,15 @@ export function MortgageCalculatorFull({ propertyPrice, needsRenovation = false 
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2">
               <span className="text-[var(--color-text-secondary)]">ITP (impuesto de compra)</span>
-              <select
+              <Select
+                size="sm"
                 value={itpReduced ? 'reduced' : 'normal'}
                 onChange={(e) => setItpReduced(e.target.value === 'reduced')}
-                className="text-xs px-2 py-1 bg-[var(--color-bg)] border border-[var(--color-border)] rounded"
-              >
-                <option value="normal">4%</option>
-                <option value="reduced">2.5% (vivienda habitual)</option>
-              </select>
+                options={[
+                  { value: 'normal', label: '4%' },
+                  { value: 'reduced', label: '2.5% (vivienda habitual)' },
+                ]}
+              />
             </div>
             <span className="font-medium">{fmt(calc.itp)}</span>
           </div>
@@ -228,12 +237,12 @@ export function MortgageCalculatorFull({ propertyPrice, needsRenovation = false 
           )}
         </div>
 
-        {needsRenovation && renovationBudget === 0 && (
+        {renovationType !== 'no' && renovationBudget === 0 && (
           <button
-            onClick={() => setRenovationBudget(30000)}
+            onClick={() => setRenovationBudget(RENOVATION_BUDGET[renovationType])}
             className="mt-3 text-sm text-[var(--color-accent)] hover:underline"
           >
-            + Añadir presupuesto de reforma
+            + Añadir presupuesto de reforma ({renovationType === 'total' ? 'total' : 'parcial'})
           </button>
         )}
       </section>

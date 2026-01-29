@@ -3,17 +3,24 @@ import { ChevronDown, ChevronUp, LogIn } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useMortgageCalculator, formatCurrency } from '../hooks/useMortgageCalculator';
+import type { RenovationType } from '../types';
+
+const RENOVATION_BUDGET: Record<RenovationType, number> = {
+  no: 0,
+  partial: 15000,
+  total: 30000,
+};
 
 interface MortgageWidgetProps {
   propertyPrice: number;
-  needsRenovation?: boolean;
+  renovationType?: RenovationType;
   className?: string;
   defaultExpanded?: boolean;
 }
 
 export function MortgageWidget({
   propertyPrice,
-  needsRenovation = false,
+  renovationType = 'no',
   className = '',
   defaultExpanded = false,
 }: MortgageWidgetProps) {
@@ -25,7 +32,7 @@ export function MortgageWidget({
   const { calc, verdict, loading } = useMortgageCalculator({
     propertyPrice,
     downPaymentPercent,
-    renovationBudget: needsRenovation ? 30000 : 0,
+    renovationBudget: RENOVATION_BUDGET[renovationType],
   });
 
   const fmt = formatCurrency;

@@ -177,7 +177,7 @@ export function Simulator() {
           </div>
           <MortgageCalculatorFull
             propertyPrice={selectedProperty.price}
-            needsRenovation={selectedProperty.needsRenovation}
+            renovationType={selectedProperty.needsRenovation}
           />
         </div>
       )}

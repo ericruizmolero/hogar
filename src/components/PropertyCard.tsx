@@ -2,8 +2,8 @@ import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { MapPin, Maximize, BedDouble, Bath, Building, Car, Wrench, Calendar, Trash2, ExternalLink } from 'lucide-react';
 import type { Property } from '../types';
-import { STATUS_LABELS } from '../types';
-import { formatPrice, getImageUrl } from '../lib/utils';
+import { STATUS_LABELS, RENOVATION_LABELS } from '../types';
+import { formatPrice, getImageUrl, getProviderLabel } from '../lib/utils';
 import { evaluateProperty, getScoreColor, getScoreBgColor } from '../lib/requirements';
 import { MortgageWidget } from './MortgageWidget';
 
@@ -177,7 +177,7 @@ export function PropertyCard({ property, selected, onSelect, selectable, onDelet
             <span className="line-clamp-1">{property.zone || property.address}</span>
           </div>
 
-          {/* Link to Idealista */}
+          {/* Link to provider */}
           {property.url && (
             <span
               onClick={(e) => {
@@ -188,7 +188,7 @@ export function PropertyCard({ property, selected, onSelect, selectable, onDelet
               className="inline-flex items-center gap-1 text-xs text-[var(--color-accent)] hover:underline mb-3 cursor-pointer"
             >
               <ExternalLink size={12} strokeWidth={1.5} />
-              Ver en Idealista
+              Ver en {getProviderLabel(property.url)}
             </span>
           )}
 
@@ -241,9 +241,13 @@ export function PropertyCard({ property, selected, onSelect, selectable, onDelet
                 <Car size={10} className="mr-1" /> Opcional
               </span>
             )}
-            {property.needsRenovation && (
-              <span className="notion-tag bg-[var(--color-discarded)] text-[var(--color-discarded-text)]">
-                <Wrench size={10} className="mr-1" /> Reforma
+            {property.needsRenovation && property.needsRenovation !== 'no' && (
+              <span className={`notion-tag ${
+                property.needsRenovation === 'total'
+                  ? 'bg-[var(--color-discarded)] text-[var(--color-discarded-text)]'
+                  : 'bg-[var(--color-favorite)] text-[var(--color-favorite-text)]'
+              }`}>
+                <Wrench size={10} className="mr-1" /> {RENOVATION_LABELS[property.needsRenovation]}
               </span>
             )}
             {property.yearBuilt > 0 && (
@@ -258,7 +262,7 @@ export function PropertyCard({ property, selected, onSelect, selectable, onDelet
             <div className="mt-3" onClick={(e) => e.preventDefault()}>
               <MortgageWidget
                 propertyPrice={property.price}
-                needsRenovation={property.needsRenovation}
+                renovationType={property.needsRenovation}
               />
             </div>
           )}

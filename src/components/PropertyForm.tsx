@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import type { Property, PropertyStatus } from '../types';
-import { STATUS_LABELS } from '../types';
+import type { Property, PropertyStatus, RenovationType } from '../types';
+import { STATUS_LABELS, RENOVATION_LABELS } from '../types';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { Select } from './ui/Select';
@@ -33,7 +33,7 @@ export function PropertyForm({ initialData, onSubmit, onCancel }: PropertyFormPr
     elevator: initialData?.elevator || false,
     yearBuilt: initialData?.yearBuilt || 0,
     orientation: initialData?.orientation || '',
-    needsRenovation: initialData?.needsRenovation || false,
+    needsRenovation: initialData?.needsRenovation || 'no' as RenovationType,
     daysPublished: initialData?.daysPublished || 0,
     photos: initialData?.photos || [],
     contactName: initialData?.contact?.name || '',
@@ -231,15 +231,14 @@ export function PropertyForm({ initialData, onSubmit, onCancel }: PropertyFormPr
             />
             <span className="text-sm">Garaje opcional</span>
           </label>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={formData.needsRenovation}
-              onChange={(e) => setFormData(prev => ({ ...prev, needsRenovation: e.target.checked }))}
-              className="w-4 h-4 text-orange-600 rounded"
+          <div className="col-span-2">
+            <Select
+              label="Reforma"
+              value={formData.needsRenovation}
+              onChange={(e) => setFormData(prev => ({ ...prev, needsRenovation: e.target.value as RenovationType }))}
+              options={Object.entries(RENOVATION_LABELS).map(([value, label]) => ({ value, label }))}
             />
-            <span className="text-sm">Necesita reforma</span>
-          </label>
+          </div>
         </div>
       </div>
 

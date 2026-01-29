@@ -125,8 +125,9 @@ export function evaluateProperty(property: Property, req: Requirements = current
   });
 
   // 5. Precio
-  const maxPrice = property.needsRenovation ? req.maxPriceRenovation : req.maxPrice;
-  const priceLabel = property.needsRenovation
+  const isRenovation = property.needsRenovation === 'partial' || property.needsRenovation === 'total';
+  const maxPrice = isRenovation ? req.maxPriceRenovation : req.maxPrice;
+  const priceLabel = isRenovation
     ? `Precio ≤ ${(req.maxPriceRenovation / 1000).toFixed(0)}K (reforma)`
     : `Precio ≤ ${(req.maxPrice / 1000).toFixed(0)}K`;
   results.push({
