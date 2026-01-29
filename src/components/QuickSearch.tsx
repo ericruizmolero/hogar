@@ -93,23 +93,28 @@ const collapsedPlatforms = PLATFORMS.filter((p) => !p.alwaysVisible);
 
 function PlatformRow({ platform }: { platform: PlatformSearch }) {
   return (
-    <div className="flex items-start gap-3">
-      <span className="text-xs text-[var(--color-text-tertiary)] w-24 flex-shrink-0 pt-0.5 truncate">
+    <div>
+      <span className="text-[11px] text-[var(--color-text-tertiary)] uppercase tracking-wide sm:hidden block mb-1">
         {platform.name}
       </span>
-      <div className="flex flex-wrap gap-1.5">
-        {platform.links.map((link) => (
-          <a
-            key={link.label}
-            href={link.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] hover:text-[var(--color-accent)] hover:bg-[var(--color-bg-hover)] transition-colors"
-          >
-            <ExternalLink size={10} strokeWidth={1.5} />
-            {link.label}
-          </a>
-        ))}
+      <div className="flex items-start gap-3">
+        <span className="text-xs text-[var(--color-text-tertiary)] w-24 flex-shrink-0 pt-0.5 truncate hidden sm:block">
+          {platform.name}
+        </span>
+        <div className="flex flex-wrap gap-1.5">
+          {platform.links.map((link) => (
+            <a
+              key={link.label}
+              href={link.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 px-2.5 py-1 sm:px-2 sm:py-0.5 rounded-md sm:rounded text-xs bg-[var(--color-bg-secondary)] border border-[var(--color-border)] sm:border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-accent)] hover:bg-[var(--color-bg-hover)] transition-colors"
+            >
+              <ExternalLink size={10} strokeWidth={1.5} />
+              {link.label}
+            </a>
+          ))}
+        </div>
       </div>
     </div>
   );
