@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Identificador único del servicio -->
+    <key>Label</key>
+    <string>com.idealista.tracker</string>
+    
+    <!-- Programa a ejecutar -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/ericruiz/Desktop/Hogar/venv/bin/python</string>
+        <string>/Users/ericruiz/Desktop/Hogar/main.py</string>
+    </array>
+    
+    <!-- Directorio de trabajo -->
+    <key>WorkingDirectory</key>
+    <string>/Users/ericruiz/Desktop/Hogar</string>
+    
+    <!-- Ejecutar al iniciar sesión -->
+    <key>RunAtLoad</key>
+    <true/>
+    
+    <!-- Mantener el proceso siempre activo (reiniciar si se detiene) -->
+    <key>KeepAlive</key>
+    <true/>
+    
+    <!-- Archivos de log -->
+    <key>StandardOutPath</key>
+    <string>/Users/ericruiz/Desktop/Hogar/logs/stdout.log</string>
+    
+    <key>StandardErrorPath</key>
+    <string>/Users/ericruiz/Desktop/Hogar/logs/stderr.log</string>
+    
+    <!-- Variables de entorno (opcional) -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+    
+    <!-- Configuración de recursos -->
+    <key>Nice</key>
+    <integer>1</integer>
+    
+    <!-- No ejecutar si la batería está baja (opcional, para portátiles) -->
+    <key>RequiresNetwork</key>
+    <true/>
+</dict>
+</plist>
+
+
