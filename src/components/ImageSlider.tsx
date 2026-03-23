@@ -67,6 +67,7 @@ export function ImageSlider({ images, address }: ImageSliderProps) {
             alt={`${address} - Foto ${currentIndex + 1}`}
             className="w-full h-full object-cover"
             decoding="async"
+            referrerPolicy="no-referrer"
             onError={(e) => handleError(getImageUrl(images[currentIndex]), e.target as HTMLImageElement)}
           />
         </div>
@@ -111,6 +112,7 @@ export function ImageSlider({ images, address }: ImageSliderProps) {
                   className="w-full h-full object-cover"
                   loading="lazy"
                   decoding="async"
+                  referrerPolicy="no-referrer"
                   onError={(e) => {
                     (e.target as HTMLImageElement).style.display = 'none';
                   }}
@@ -141,6 +143,7 @@ export function ImageSlider({ images, address }: ImageSliderProps) {
             alt={`${address} - Foto ${currentIndex + 1}`}
             className="max-w-full max-h-full object-contain"
             decoding="async"
+            referrerPolicy="no-referrer"
             onClick={(e) => e.stopPropagation()}
           />
 

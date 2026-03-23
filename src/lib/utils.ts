@@ -33,37 +33,12 @@ export function calculatePricePerMeter(price: number, squareMeters: number): num
   return Math.round(price / squareMeters);
 }
 
-/**
- * Dominios cuyas imágenes necesitan pasar por el proxy para evitar CORS.
- * Debe coincidir con ALLOWED_IMAGE_DOMAINS en server.py.
- */
-const PROXIED_IMAGE_DOMAINS = [
-  'idealista.com',
-  'fotocasa.es',
-  'pisos.com',
-  'habitaclia.com',
-  'apinmo.com',
-  'inmotek.net',
-];
-
-// Devuelve la URL de la imagen, usando proxy para dominios conocidos
+// Devuelve la URL de la imagen tal cual.
+// Las imágenes se cargan directamente con referrerPolicy="no-referrer" en los <img>,
+// lo que evita el bloqueo por hotlinking sin necesidad de proxy.
+// El proxy (/api/image-proxy) solo se usa en storage.ts para la migración a Firebase.
 export function getImageUrl(url: string): string {
-  if (!url || url.startsWith('data:')) {
-    return url;
-  }
-
-  // Firebase Storage URLs — CDN directo, no necesitan proxy
-  if (url.includes('firebasestorage') || url.includes('googleapis.com')) {
-    return url;
-  }
-
-  const needsProxy = PROXIED_IMAGE_DOMAINS.some((domain) => url.includes(domain));
-  if (needsProxy) {
-    // DEV: servidor local. PROD: ruta relativa → pasa por Vercel CDN (rewrite)
-    const apiUrl = import.meta.env.DEV ? 'http://localhost:5001' : '';
-    return `${apiUrl}/api/image-proxy?url=${encodeURIComponent(url)}`;
-  }
-
+  if (!url || url.startsWith('data:')) return url;
   return url;
 }
 

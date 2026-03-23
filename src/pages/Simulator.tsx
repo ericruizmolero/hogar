@@ -139,6 +139,7 @@ export function Simulator() {
                       src={getImageUrl(property.photos[0])}
                       alt={property.address}
                       className="w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-[var(--color-text-tertiary)]">

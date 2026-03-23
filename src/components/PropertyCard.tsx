@@ -85,6 +85,7 @@ export function PropertyCard({ property, selected, onSelect, selectable, onDelet
               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
               loading="lazy"
               decoding="async"
+              referrerPolicy="no-referrer"
               onError={(e) => {
                 const el = e.target as HTMLImageElement;
                 if (!el.dataset.retried) {

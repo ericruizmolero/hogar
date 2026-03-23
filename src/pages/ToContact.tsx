@@ -203,6 +203,7 @@ function ContactCard({
             className="w-9 h-9 rounded object-cover flex-shrink-0 bg-[var(--color-bg-secondary)]"
             loading="lazy"
             decoding="async"
+            referrerPolicy="no-referrer"
             onError={(e) => {
               (e.target as HTMLImageElement).style.display = 'none';
             }}
