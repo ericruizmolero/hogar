@@ -496,8 +496,8 @@ function SectionBlock({
                           defaultValue={notes?.[item.id] || ''}
                           onChange={(e) => onNote(item.id, e.target.value)}
                           placeholder="Escribe tus notas aqui..."
-                          rows={2}
-                          className="mt-2 w-full text-sm rounded-md border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-3 py-2 text-[var(--color-text)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)] resize-y"
+                          rows={4}
+                          className="mt-2 w-full text-sm rounded-md border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-3 py-2 text-[var(--color-text)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)] resize-y min-h-[120px] sm:min-h-[80px]"
                         />
                       )}
 
