@@ -1,3 +1,12 @@
+export interface ChecklistAttachment {
+  id: string;
+  data: string;        // base64 data URI (imagen comprimida)
+  name: string;
+  type: 'image';
+  size: number;        // tamaño original en bytes
+  createdAt: number;
+}
+
 export type PropertyStatus = 'pending' | 'contacted' | 'visited' | 'favorite' | 'discarded';
 
 export type CallResult = 'no_answer' | 'scheduled_visit' | 'info_received' | 'not_available' | 'other';
@@ -43,6 +52,8 @@ export interface Property {
   notes: string;
   callNotes?: string;
   visitChecklist?: Record<string, boolean>;
+  visitChecklistNotes?: Record<string, string>;
+  visitChecklistAttachments?: Record<string, ChecklistAttachment[]>;
   createdAt: Date;
   updatedAt: Date;
 }
