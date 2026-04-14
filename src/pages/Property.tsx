@@ -32,7 +32,6 @@ import { PropertyForm } from '../components/PropertyForm';
 import { ImageSlider } from '../components/ImageSlider';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
-import { Input } from '../components/ui/Input';
 import { formatPrice, formatDate, getProviderLabel } from '../lib/utils';
 import { evaluateProperty, getScoreColor, getScoreBgColor } from '../lib/requirements';
 import { LocationPicker } from '../components/LocationPicker';

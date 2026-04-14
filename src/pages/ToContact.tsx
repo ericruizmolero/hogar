@@ -8,7 +8,6 @@ import {
   ExternalLink,
   Pencil,
   ChevronDown,
-  MapPin,
   Maximize,
   BedDouble,
   Building,
