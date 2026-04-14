@@ -198,11 +198,16 @@ export function PropertyCard({ property, selected, onSelect, selectable, onArchi
               className="text-xl font-medium text-[var(--color-text)]"
               style={{ fontFamily: 'var(--font-serif)' }}
             >
-              {formatPrice(property.price)}
+              {property.isNewBuild ? formatPrice(Math.round(property.price * 1.10)) : formatPrice(property.price)}
             </h3>
-            <span className="text-xs text-[var(--color-text-tertiary)]">
-              {formatPrice(pricePerMeter)}/m²
-            </span>
+            <div className="flex items-baseline gap-1.5">
+              {property.isNewBuild && (
+                <span className="text-[10px] text-[var(--color-favorite-text)]">+IVA</span>
+              )}
+              <span className="text-xs text-[var(--color-text-tertiary)]">
+                {formatPrice(pricePerMeter)}/m²
+              </span>
+            </div>
           </div>
 
           {/* Title */}

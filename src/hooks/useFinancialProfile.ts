@@ -4,6 +4,9 @@ import { db } from '../lib/firebase';
 import { useAuth } from '../context/AuthContext';
 
 export interface FinancialProfile {
+  // Nombres
+  name1: string;
+  name2: string;
   // Ahorros
   savings1: number;
   savings2: number;
@@ -15,6 +18,8 @@ export interface FinancialProfile {
 }
 
 export const DEFAULT_FINANCIAL_PROFILE: FinancialProfile = {
+  name1: 'Persona 1',
+  name2: 'Persona 2',
   savings1: 75000,
   savings2: 75000,
   income1: 2500,

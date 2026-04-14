@@ -54,6 +54,7 @@ export interface Property {
   visitChecklist?: Record<string, boolean>;
   visitChecklistNotes?: Record<string, string>;
   visitChecklistAttachments?: Record<string, ChecklistAttachment[]>;
+  isNewBuild?: boolean;
   archived?: boolean;
   createdAt: Date;
   updatedAt: Date;

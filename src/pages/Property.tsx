@@ -278,10 +278,17 @@ export function Property() {
                 className="text-3xl font-medium text-[var(--color-text)] mb-1"
                 style={{ fontFamily: 'var(--font-serif)' }}
               >
-                {formatPrice(property.price)}
+                {property.isNewBuild
+                  ? formatPrice(Math.round(property.price * 1.10))
+                  : formatPrice(property.price)}
               </h1>
               <p className="text-[var(--color-text-secondary)]">
                 {formatPrice(pricePerMeter)}/m²
+                {property.isNewBuild && (
+                  <span className="ml-2 text-xs text-[var(--color-favorite-text)]">
+                    ({formatPrice(property.price)} + 10% IVA)
+                  </span>
+                )}
               </p>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
@@ -491,27 +498,54 @@ export function Property() {
           </div>
         </div>
 
-        {/* Renovation toggle */}
-        <div className="pt-4 border-t border-[var(--color-border)]">
-          <p className="text-xs text-[var(--color-text-tertiary)] mb-2">Reforma</p>
-          <div className="flex flex-wrap gap-2">
-            {(Object.entries(RENOVATION_LABELS) as [RenovationType, string][]).map(([value, label]) => (
+        {/* Renovation + new build toggles */}
+        <div className="pt-4 border-t border-[var(--color-border)] space-y-4">
+          <div>
+            <p className="text-xs text-[var(--color-text-tertiary)] mb-2">Reforma</p>
+            <div className="flex flex-wrap gap-2">
+              {(Object.entries(RENOVATION_LABELS) as [RenovationType, string][]).map(([value, label]) => (
+                <button
+                  key={value}
+                  onClick={() => updateProperty(property.id, { needsRenovation: value })}
+                  className={`h-8 px-3 text-sm rounded-md border transition-all inline-flex items-center ${
+                    property.needsRenovation === value
+                      ? value === 'total'
+                        ? 'bg-[var(--color-discarded)] text-[var(--color-discarded-text)] border-[var(--color-discarded)]'
+                        : value === 'partial'
+                        ? 'bg-[var(--color-favorite)] text-[var(--color-favorite-text)] border-[var(--color-favorite)]'
+                        : 'bg-[var(--color-visited)] text-[var(--color-visited-text)] border-[var(--color-visited)]'
+                      : 'bg-transparent text-[var(--color-text-secondary)] border-[var(--color-border)] hover:border-[var(--color-border-strong)]'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="text-xs text-[var(--color-text-tertiary)] mb-2">Tipo de vivienda</p>
+            <div className="flex gap-2">
               <button
-                key={value}
-                onClick={() => updateProperty(property.id, { needsRenovation: value })}
-                className={`px-3 py-1 text-sm rounded-md border transition-all ${
-                  property.needsRenovation === value
-                    ? value === 'total'
-                      ? 'bg-[var(--color-discarded)] text-[var(--color-discarded-text)] border-[var(--color-discarded)]'
-                      : value === 'partial'
-                      ? 'bg-[var(--color-favorite)] text-[var(--color-favorite-text)] border-[var(--color-favorite)]'
-                      : 'bg-[var(--color-visited)] text-[var(--color-visited-text)] border-[var(--color-visited)]'
+                onClick={() => updateProperty(property.id, { isNewBuild: false })}
+                className={`h-8 px-3 text-sm rounded-md border transition-all inline-flex items-center ${
+                  !property.isNewBuild
+                    ? 'bg-[var(--color-text)] text-white border-[var(--color-text)]'
                     : 'bg-transparent text-[var(--color-text-secondary)] border-[var(--color-border)] hover:border-[var(--color-border-strong)]'
                 }`}
               >
-                {label}
+                Segunda mano
               </button>
-            ))}
+              <button
+                onClick={() => updateProperty(property.id, { isNewBuild: true })}
+                className={`h-8 px-3 text-sm rounded-md border transition-all inline-flex items-center ${
+                  property.isNewBuild
+                    ? 'bg-[var(--color-text)] text-white border-[var(--color-text)]'
+                    : 'bg-transparent text-[var(--color-text-secondary)] border-[var(--color-border)] hover:border-[var(--color-border-strong)]'
+                }`}
+              >
+                Obra nueva (precio sin IVA)
+              </button>
+            </div>
           </div>
         </div>
 

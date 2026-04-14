@@ -68,6 +68,8 @@ export interface MortgageResult {
   verdict: MortgageVerdict;
   loading: boolean;
   profile: {
+    name1: string;
+    name2: string;
     savings1: number;
     savings2: number;
     income1: number;
@@ -78,7 +80,7 @@ export interface MortgageResult {
 
 export function useMortgageCalculator(inputs: MortgageInputs): MortgageResult {
   const { profile, loading } = useFinancialProfile();
-  const { savings1, savings2, income1, income2, monthlyExpenses } = profile;
+  const { name1, name2, savings1, savings2, income1, income2, monthlyExpenses } = profile;
 
   const {
     propertyPrice,
@@ -111,8 +113,8 @@ export function useMortgageCalculator(inputs: MortgageInputs): MortgageResult {
     const otherExpenses = 2000; // notaría, registro, gestoría, tasación
     const purchaseExpenses = itp + otherExpenses;
 
-    // Total que necesitas en el banco el día de la compra (50/50)
-    const totalNeededForPurchase = downPayment + purchaseExpenses + renovationBudget;
+    // Total que necesitas el día de la firma
+    const totalNeededForPurchase = downPayment + purchaseExpenses;
 
     // Cada uno pone la mitad de la entrada + gastos (50/50)
     const halfNeeded = totalNeededForPurchase / 2;
@@ -128,7 +130,7 @@ export function useMortgageCalculator(inputs: MortgageInputs): MortgageResult {
     const person2CanAfford = savings2 >= person2Total;
     const canAffordPurchase = person1CanAfford && person2CanAfford;
 
-    // Cuánto le queda a cada uno después
+    // Cuánto le queda a cada uno después de la firma
     const person1Remaining = savings1 - person1Total;
     const person2Remaining = savings2 - person2Total;
     const remaining = person1Remaining + person2Remaining;
@@ -252,6 +254,8 @@ export function useMortgageCalculator(inputs: MortgageInputs): MortgageResult {
     verdict,
     loading,
     profile: {
+      name1,
+      name2,
       savings1,
       savings2,
       income1,
