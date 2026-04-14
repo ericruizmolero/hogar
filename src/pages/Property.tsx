@@ -475,7 +475,7 @@ export function Property() {
 
         {/* Mortgage Calculator */}
         <div className="pt-4 border-t border-[var(--color-border)]">
-          <MortgageCalculator propertyPrice={property.price} renovationType={property.needsRenovation} />
+          <MortgageCalculator propertyPrice={property.price} renovationType={property.needsRenovation} propertyId={property.id} />
         </div>
 
         {/* Status change */}

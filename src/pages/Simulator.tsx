@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useCallback } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowLeft, Settings, Download, Loader2, Save, Trash2, History, ChevronDown, Pencil } from 'lucide-react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, Settings, Download, Loader2, Save, Trash2, Pencil } from 'lucide-react';
 import { useProperties } from '../hooks/useProperties';
 import { useMortgageCalculator, formatCurrency } from '../hooks/useMortgageCalculator';
 import { useFinancialProfile } from '../hooks/useFinancialProfile';
@@ -10,7 +10,9 @@ import { formatPrice, getImageUrl } from '../lib/utils';
 export function Simulator() {
   const { properties, loading: loadingProps } = useProperties();
   const { profile, loading: loadingProfile } = useFinancialProfile();
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+  const initialPiso = searchParams.get('piso');
+  const [selectedId, setSelectedId] = useState<string | null>(initialPiso);
   const [downPct, setDownPct] = useState(20);
   const [rate, setRate] = useState(2.5);
   const [years, setYears] = useState(30);
@@ -22,8 +24,8 @@ export function Simulator() {
   const [customPrice, setCustomPrice] = useState<number | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
   const [editingSimId, setEditingSimId] = useState<string | null>(null);
+  const navigate = useNavigate();
   const { simulations, saveSimulation, updateSimulation, deleteSimulation } = useSimulations();
 
   const selected = useMemo(
@@ -124,7 +126,6 @@ export function Simulator() {
     const sqm = prop?.builtSquareMeters || prop?.squareMeters || 0;
     setRenoPerSqm(sqm > 0 && sim.renovationBudget > 0 ? Math.round(sim.renovationBudget / sqm) : 500);
     setEditingSimId(edit ? sim.id : null);
-    setShowHistory(false);
   }, [properties]);
 
   const handleDownloadPdf = useCallback(async () => {
@@ -349,13 +350,18 @@ export function Simulator() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 sm:py-8 animate-in">
-      <Link
-        to="/"
-        className="inline-flex items-center gap-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)] mb-4"
-      >
-        <ArrowLeft size={16} />
-        Volver
-      </Link>
+      {(initialPiso || selectedId) && (
+        <button
+          onClick={() => {
+            if (initialPiso) { navigate(-1); }
+            else { setSelectedId(null); setEditingSimId(null); }
+          }}
+          className="inline-flex items-center gap-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)] mb-4"
+        >
+          <ArrowLeft size={16} />
+          Volver
+        </button>
+      )}
 
       <h1
         className="text-2xl sm:text-3xl font-medium text-[var(--color-text)] mb-1"
@@ -469,7 +475,7 @@ export function Simulator() {
       )}
 
       {!selected && (
-        <div className="py-16 text-center">
+        <div className="py-6 text-center">
           <p className="text-sm text-[var(--color-text-tertiary)]">
             Selecciona un piso de arriba para simular
           </p>
@@ -803,45 +809,60 @@ export function Simulator() {
         </div>
       )}
 
-      {/* History */}
+      {/* Saved simulations */}
       {simulations.length > 0 && (
         <div className="mt-8">
-          <button
-            onClick={() => setShowHistory(!showHistory)}
-            className="w-full flex items-center gap-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)] transition-colors mb-3"
+          <h2
+            className="text-lg font-medium text-[var(--color-text)] mb-4"
+            style={{ fontFamily: 'var(--font-serif)' }}
           >
-            <History size={14} strokeWidth={1.5} />
-            <span>Simulaciones guardadas ({simulations.length})</span>
-            <ChevronDown size={13} className={`ml-auto transition-transform duration-200 ${showHistory ? 'rotate-180' : ''}`} />
-          </button>
+            Simulaciones guardadas
+          </h2>
+          <div className="space-y-3">
+            {simulations.map((sim) => {
+              const prop = properties.find(p => p.id === sim.propertyId);
+              const label = sim.propertyZone || sim.propertyAddress || (sim as unknown as Record<string,string>).propertyLabel || 'Propiedad';
+              const thumb = prop?.photos?.[0];
+              return (
+                <div
+                  key={sim.id}
+                  className={`group rounded-lg border overflow-hidden transition-colors ${
+                    editingSimId === sim.id
+                      ? 'border-[var(--color-accent)] bg-[var(--color-contacted)]/20'
+                      : 'border-[var(--color-border)] hover:border-[var(--color-border-strong)]'
+                  }`}
+                >
+                  <div className="flex">
+                    {/* Photo */}
+                    <div className="w-24 sm:w-28 flex-shrink-0 bg-[var(--color-bg-secondary)]">
+                      {thumb ? (
+                        <img
+                          src={getImageUrl(thumb)}
+                          alt={label}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                          referrerPolicy="no-referrer"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-xl opacity-15">🏠</div>
+                      )}
+                    </div>
 
-          {showHistory && (
-            <div className="space-y-3">
-              {simulations.map((sim) => {
-                const label = sim.propertyZone || sim.propertyAddress || (sim as unknown as Record<string,string>).propertyLabel || 'Propiedad';
-                return (
-                  <div
-                    key={sim.id}
-                    className={`group rounded-lg border overflow-hidden transition-colors ${
-                      editingSimId === sim.id
-                        ? 'border-[var(--color-accent)] bg-[var(--color-contacted)]/20'
-                        : 'border-[var(--color-border)] hover:border-[var(--color-border-strong)]'
-                    }`}
-                  >
-                    {/* Main info */}
-                    <div className="p-4">
-                      <div className="flex items-start justify-between gap-3 mb-2">
+                    {/* Info */}
+                    <div className="flex-1 min-w-0 p-3">
+                      <div className="flex items-start justify-between gap-2 mb-1.5">
                         <div className="min-w-0">
                           <div className="text-sm font-medium text-[var(--color-text)] truncate">{label}</div>
-                          <div className="text-xs text-[var(--color-text-tertiary)] mt-0.5">
-                            {sim.createdAt.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          <div className="text-[11px] text-[var(--color-text-tertiary)]">
+                            {sim.createdAt.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
                             {sim.updatedAt > sim.createdAt && (
-                              <span> · editado {sim.updatedAt.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}</span>
+                              <span> · editado</span>
                             )}
                           </div>
                         </div>
                         <span
-                          className={`flex-shrink-0 px-2 py-0.5 rounded text-[10px] font-medium ${
+                          className={`flex-shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium ${
                             sim.verdictText.includes('margen') || sim.verdictText.includes('omoda')
                               ? 'bg-[var(--color-visited)] text-[var(--color-visited-text)]'
                               : sim.verdictText.includes('iable') || sim.verdictText.includes('usto')
@@ -853,60 +874,48 @@ export function Simulator() {
                         </span>
                       </div>
 
-                      {/* Key numbers */}
-                      <div className="grid grid-cols-3 gap-3 text-center">
-                        <div className="p-2 rounded-md bg-[var(--color-bg-secondary)]">
-                          <div className="text-[10px] text-[var(--color-text-tertiary)]">Precio</div>
-                          <div className="text-sm font-medium text-[var(--color-text)]" style={{ fontFamily: 'var(--font-serif)' }}>{fmt(sim.effectivePrice)}</div>
-                        </div>
-                        <div className="p-2 rounded-md bg-[var(--color-bg-secondary)]">
-                          <div className="text-[10px] text-[var(--color-text-tertiary)]">Firma</div>
-                          <div className="text-sm font-medium text-[var(--color-text)]" style={{ fontFamily: 'var(--font-serif)' }}>{fmt(sim.totalNeededForPurchase)}</div>
-                        </div>
-                        <div className="p-2 rounded-md bg-[var(--color-bg-secondary)]">
-                          <div className="text-[10px] text-[var(--color-text-tertiary)]">Cuota</div>
-                          <div className="text-sm font-medium text-[var(--color-text)]" style={{ fontFamily: 'var(--font-serif)' }}>{fmt(sim.totalMonthly)}</div>
-                        </div>
+                      {/* Key numbers inline */}
+                      <div className="flex items-baseline gap-3 text-xs mb-1.5">
+                        <span className="font-medium text-[var(--color-text)]" style={{ fontFamily: 'var(--font-serif)' }}>{fmt(sim.effectivePrice)}</span>
+                        <span className="text-[var(--color-text-tertiary)]">firma {fmt(sim.totalNeededForPurchase)}</span>
+                        <span className="text-[var(--color-text-tertiary)]">{fmt(sim.totalMonthly)}/mes</span>
                       </div>
 
                       {/* Conditions */}
-                      <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-2 text-[11px] text-[var(--color-text-tertiary)]">
-                        <span>{sim.downPct}% entrada</span>
-                        <span>{sim.rate}% interés</span>
-                        <span>{sim.years} años</span>
+                      <div className="flex flex-wrap gap-x-2 text-[10px] text-[var(--color-text-tertiary)]">
+                        <span>{sim.downPct}% · {sim.rate}% · {sim.years}a</span>
                         <span>{sim.percentageOfIncome.toFixed(0)}% ingresos</span>
-                        {sim.priceExVat && <span>+IVA</span>}
-                        {sim.includeRenovation && sim.renovationBudget > 0 && <span>reforma {fmt(sim.renovationBudget)}</span>}
+                        {sim.includeRenovation && sim.renovationBudget > 0 && <span>reforma</span>}
                         {sim.customPrice && sim.customPrice !== sim.basePrice && <span>negociado</span>}
                       </div>
-                    </div>
 
-                    {/* Actions */}
-                    <div className="flex border-t border-[var(--color-border)]">
-                      <button
-                        onClick={() => loadSimulation(sim)}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)] transition-colors border-r border-[var(--color-border)]"
-                      >
-                        Ver
-                      </button>
-                      <button
-                        onClick={() => loadSimulation(sim, true)}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)] transition-colors border-r border-[var(--color-border)]"
-                      >
-                        <Pencil size={11} /> Editar
-                      </button>
-                      <button
-                        onClick={() => deleteSimulation(sim.id)}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs text-[var(--color-text-tertiary)] hover:text-[var(--color-discarded-text)] hover:bg-[var(--color-bg-hover)] transition-colors"
-                      >
-                        <Trash2 size={11} /> Eliminar
-                      </button>
+                      {/* Actions */}
+                      <div className="flex items-center gap-3 mt-2">
+                        <button
+                          onClick={() => loadSimulation(sim)}
+                          className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text)] transition-colors"
+                        >
+                          Ver
+                        </button>
+                        <button
+                          onClick={() => loadSimulation(sim, true)}
+                          className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text)] transition-colors flex items-center gap-1"
+                        >
+                          <Pencil size={10} /> Editar
+                        </button>
+                        <button
+                          onClick={() => deleteSimulation(sim.id)}
+                          className="text-xs text-[var(--color-text-tertiary)] hover:text-[var(--color-discarded-text)] transition-colors flex items-center gap-1 ml-auto opacity-0 group-hover:opacity-100"
+                        >
+                          <Trash2 size={10} /> Eliminar
+                        </button>
+                      </div>
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>

@@ -13,9 +13,10 @@ const RENOVATION_BUDGET: Record<RenovationType, number> = {
 interface MortgageCalculatorProps {
   propertyPrice: number;
   renovationType?: RenovationType;
+  propertyId?: string;
 }
 
-export function MortgageCalculator({ propertyPrice, renovationType = 'no' }: MortgageCalculatorProps) {
+export function MortgageCalculator({ propertyPrice, renovationType = 'no', propertyId }: MortgageCalculatorProps) {
   const [expanded, setExpanded] = useState(false);
   const [downPaymentPercent, setDownPaymentPercent] = useState(20);
 
@@ -113,7 +114,7 @@ export function MortgageCalculator({ propertyPrice, renovationType = 'no' }: Mor
 
           {/* Link al simulador completo */}
           <Link
-            to="/simulador"
+            to={propertyId ? `/simulador?piso=${propertyId}` : '/simulador'}
             className="block text-center text-sm text-[var(--color-accent)] hover:underline py-2"
           >
             Abrir simulador completo (con desglose detallado)
