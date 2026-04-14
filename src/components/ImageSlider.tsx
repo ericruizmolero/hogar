@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { getImageUrl } from '../lib/utils';
+import { useSwipe } from '../hooks/useSwipe';
 
 interface ImageSliderProps {
   images: string[];
@@ -15,7 +16,6 @@ function useImageError() {
 
   const handleError = useCallback((src: string, el: HTMLImageElement) => {
     if (!retried.has(src)) {
-      // Retry once — append cache-buster
       setRetried((prev) => new Set(prev).add(src));
       el.src = src + (src.includes('?') ? '&' : '?') + 'r=1';
     } else {
@@ -32,6 +32,17 @@ export function ImageSlider({ images, address }: ImageSliderProps) {
   const [fullscreen, setFullscreen] = useState(false);
   const { handleError } = useImageError();
 
+  const goToPrevious = useCallback(() => {
+    setCurrentIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
+  }, [images.length]);
+
+  const goToNext = useCallback(() => {
+    setCurrentIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+  }, [images.length]);
+
+  const swipe = useSwipe(goToNext, goToPrevious);
+  const swipeFullscreen = useSwipe(goToNext, goToPrevious);
+
   if (images.length === 0) {
     return (
       <div className="w-full h-64 bg-gray-200 flex items-center justify-center rounded-t-xl">
@@ -40,18 +51,16 @@ export function ImageSlider({ images, address }: ImageSliderProps) {
     );
   }
 
-  const goToPrevious = () => {
-    setCurrentIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
-  };
-
-  const goToNext = () => {
-    setCurrentIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
-  };
-
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowLeft') goToPrevious();
     if (e.key === 'ArrowRight') goToNext();
     if (e.key === 'Escape') setFullscreen(false);
+  };
+
+  const handleSliderClick = () => {
+    if (!swipe.isSwiping()) {
+      setFullscreen(true);
+    }
   };
 
   return (
@@ -59,15 +68,23 @@ export function ImageSlider({ images, address }: ImageSliderProps) {
       {/* Slider normal */}
       <div className="relative group">
         <div
-          className="w-full h-72 md:h-96 cursor-pointer bg-[var(--color-bg-secondary)]"
-          onClick={() => setFullscreen(true)}
+          className="w-full h-72 md:h-96 cursor-pointer bg-[var(--color-bg-secondary)] select-none"
+          onClick={handleSliderClick}
+          onTouchStart={swipe.onTouchStart}
+          onTouchMove={swipe.onTouchMove}
+          onTouchEnd={swipe.onTouchEnd}
+          onMouseDown={swipe.onMouseDown}
+          onMouseMove={swipe.onMouseMove}
+          onMouseUp={swipe.onMouseUp}
+          onMouseLeave={swipe.onMouseLeave}
         >
           <img
             src={getImageUrl(images[currentIndex])}
             alt={`${address} - Foto ${currentIndex + 1}`}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover pointer-events-none"
             decoding="async"
             referrerPolicy="no-referrer"
+            draggable={false}
             onError={(e) => handleError(getImageUrl(images[currentIndex]), e.target as HTMLImageElement)}
           />
         </div>
@@ -126,9 +143,16 @@ export function ImageSlider({ images, address }: ImageSliderProps) {
       {/* Fullscreen modal */}
       {fullscreen && (
         <div
-          className="fixed inset-0 z-50 bg-black flex items-center justify-center"
-          onClick={() => setFullscreen(false)}
+          className="fixed inset-0 z-50 bg-black flex items-center justify-center select-none"
+          onClick={() => { if (!swipeFullscreen.isSwiping()) setFullscreen(false); }}
           onKeyDown={handleKeyDown}
+          onTouchStart={swipeFullscreen.onTouchStart}
+          onTouchMove={swipeFullscreen.onTouchMove}
+          onTouchEnd={swipeFullscreen.onTouchEnd}
+          onMouseDown={swipeFullscreen.onMouseDown}
+          onMouseMove={swipeFullscreen.onMouseMove}
+          onMouseUp={swipeFullscreen.onMouseUp}
+          onMouseLeave={swipeFullscreen.onMouseLeave}
           tabIndex={0}
         >
           <button
@@ -141,10 +165,10 @@ export function ImageSlider({ images, address }: ImageSliderProps) {
           <img
             src={getImageUrl(images[currentIndex])}
             alt={`${address} - Foto ${currentIndex + 1}`}
-            className="max-w-full max-h-full object-contain"
+            className="max-w-full max-h-full object-contain pointer-events-none"
             decoding="async"
             referrerPolicy="no-referrer"
-            onClick={(e) => e.stopPropagation()}
+            draggable={false}
           />
 
           {images.length > 1 && (

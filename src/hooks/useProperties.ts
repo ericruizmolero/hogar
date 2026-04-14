@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   collection,
   query,
@@ -17,12 +17,12 @@ import type { Property, PropertyStatus } from '../types';
 
 export function useProperties() {
   const { user } = useAuth();
-  const [properties, setProperties] = useState<Property[]>([]);
+  const [allProperties, setAllProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user) {
-      setProperties([]);
+      setAllProperties([]);
       setLoading(false);
       return;
     }
@@ -42,12 +42,24 @@ export function useProperties() {
           updatedAt: data.updatedAt?.toDate() || new Date(),
         } as Property;
       });
-      setProperties(props);
+      setAllProperties(props);
       setLoading(false);
     });
 
     return unsubscribe;
   }, [user]);
+
+  // Active (non-archived) properties
+  const properties = useMemo(
+    () => allProperties.filter((p) => !p.archived),
+    [allProperties]
+  );
+
+  // Archived properties
+  const archivedProperties = useMemo(
+    () => allProperties.filter((p) => p.archived),
+    [allProperties]
+  );
 
   const addProperty = async (property: Omit<Property, 'id' | 'createdAt' | 'updatedAt'>) => {
     if (!user) return;
@@ -97,6 +109,14 @@ export function useProperties() {
     await updateProperty(id, { status });
   };
 
+  const archiveProperty = async (id: string) => {
+    await updateProperty(id, { archived: true });
+  };
+
+  const unarchiveProperty = async (id: string) => {
+    await updateProperty(id, { archived: false });
+  };
+
   const deleteProperty = async (id: string) => {
     if (!user) return;
 
@@ -106,10 +126,13 @@ export function useProperties() {
 
   return {
     properties,
+    archivedProperties,
     loading,
     addProperty,
     updateProperty,
     updateStatus,
+    archiveProperty,
+    unarchiveProperty,
     deleteProperty,
   };
 }

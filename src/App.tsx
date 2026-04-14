@@ -5,12 +5,12 @@ import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { Property } from './pages/Property';
 import { Compare } from './pages/Compare';
-import { Reminders } from './pages/Reminders';
 import { MapView } from './pages/MapView';
 import { Settings } from './pages/Settings';
 import { Simulator } from './pages/Simulator';
 import { ToContact } from './pages/ToContact';
 import { VisitChecklist } from './pages/VisitChecklist';
+import { Archived } from './pages/Archived';
 
 function PrivateRoute() {
   const { user, loading } = useAuth();
@@ -47,10 +47,11 @@ function App() {
             <Route path="/visita/:id" element={<VisitChecklist />} />
             <Route path="/compare" element={<Compare />} />
             <Route path="/map" element={<MapView />} />
-            <Route path="/reminders" element={<Reminders />} />
+
             <Route path="/settings" element={<Settings />} />
             <Route path="/simulador" element={<Simulator />} />
             <Route path="/contactar" element={<ToContact />} />
+            <Route path="/archivados" element={<Archived />} />
           </Route>
         </Routes>
       </AuthProvider>

@@ -124,7 +124,7 @@ export function QuickSearch() {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="mb-6">
+    <div>
       <div className="flex items-center gap-2 mb-3">
         <Compass size={15} strokeWidth={1.5} className="text-[var(--color-text-tertiary)]" />
         <span className="text-sm text-[var(--color-text-secondary)]">

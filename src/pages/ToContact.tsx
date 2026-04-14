@@ -1,6 +1,18 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { Phone, Check, ArrowLeft, PhoneOff, Circle, CheckCircle2, ExternalLink, Pencil } from 'lucide-react';
+import {
+  Phone,
+  Check,
+  ArrowLeft,
+  PhoneOff,
+  ExternalLink,
+  Pencil,
+  ChevronDown,
+  MapPin,
+  Maximize,
+  BedDouble,
+  Building,
+} from 'lucide-react';
 import { useProperties } from '../hooks/useProperties';
 import { formatPrice, getImageUrl } from '../lib/utils';
 import type { Property } from '../types';
@@ -54,28 +66,29 @@ export function ToContact() {
   );
 
   return (
-    <div className="max-w-5xl mx-auto px-3 sm:px-6 py-6 sm:py-8 animate-in">
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-8 animate-in">
       {/* Header */}
-      <div className="flex items-center justify-between mb-5">
-        <div>
-          <Link
-            to="/"
-            className="inline-flex items-center gap-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)] mb-3"
-          >
-            <ArrowLeft size={16} />
-            Volver
-          </Link>
-          <h1
-            className="text-xl sm:text-2xl font-medium text-[var(--color-text)]"
-            style={{ fontFamily: 'var(--font-serif)' }}
-          >
-            Contactar
-          </h1>
-        </div>
+      <div className="mb-6">
+        <Link
+          to="/"
+          className="inline-flex items-center gap-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text)] mb-3"
+        >
+          <ArrowLeft size={16} />
+          Volver
+        </Link>
+        <h1
+          className="text-2xl sm:text-3xl font-medium text-[var(--color-text)]"
+          style={{ fontFamily: 'var(--font-serif)' }}
+        >
+          Contactar
+        </h1>
+        <p className="text-[var(--color-text-secondary)] mt-1">
+          {counts.pending} por llamar · {counts.contacted} contactados
+        </p>
       </div>
 
       {/* Filters */}
-      <div className="flex gap-1.5 mb-4">
+      <div className="flex gap-1.5 mb-6">
         {([
           { key: 'all', label: 'Todos', count: counts.all },
           { key: 'pending', label: 'Por contactar', count: counts.pending },
@@ -84,7 +97,7 @@ export function ToContact() {
           <button
             key={key}
             onClick={() => setFilter(key)}
-            className={`px-3 py-1.5 text-xs sm:text-sm rounded-md transition-all ${
+            className={`h-8 px-3 text-sm rounded-md transition-all inline-flex items-center ${
               filter === key
                 ? 'bg-[var(--color-text)] text-white'
                 : 'bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)]'
@@ -95,60 +108,42 @@ export function ToContact() {
         ))}
       </div>
 
-      {/* Grid */}
+      {/* List */}
       {list.length === 0 ? (
         <div className="py-16 text-center">
-          <Phone size={28} className="mx-auto text-[var(--color-text-tertiary)] mb-3" strokeWidth={1.5} />
+          <Phone size={32} className="mx-auto text-[var(--color-text-tertiary)] mb-3 opacity-30" strokeWidth={1.5} />
           <p className="text-sm text-[var(--color-text-tertiary)]">
-            {filter === 'contacted' ? 'Ningun piso contactado' : 'Todos contactados'}
+            {filter === 'contacted' ? 'Ningún piso contactado' : 'Todos contactados'}
           </p>
         </div>
       ) : (
-        <>
-          <div className="hidden sm:flex gap-2">
-            {[0, 1].map((col) => (
-              <div key={col} className="flex-1 flex flex-col gap-2">
-                {list.filter((_, i) => i % 2 === col).map((p) => (
-                  <ContactCard
-                    key={p.id}
-                    property={p}
-                    isExpanded={expandedId === p.id}
-                    onToggleExpand={() => setExpandedId(expandedId === p.id ? null : p.id)}
-                    onToggleContacted={() => toggleContacted(p)}
-                    onUpdateProperty={updateProperty}
-                  />
-                ))}
-              </div>
-            ))}
-          </div>
-          <div className="sm:hidden flex flex-col gap-2">
-            {list.map((p) => (
-              <ContactCard
-                key={p.id}
-                property={p}
-                isExpanded={expandedId === p.id}
-                onToggleExpand={() => setExpandedId(expandedId === p.id ? null : p.id)}
-                onToggleContacted={() => toggleContacted(p)}
-                onUpdateProperty={updateProperty}
-              />
-            ))}
-          </div>
-        </>
+        <div className="space-y-3">
+          {list.map((p) => (
+            <ContactCard
+              key={p.id}
+              property={p}
+              isExpanded={expandedId === p.id}
+              onToggleExpand={() => setExpandedId(expandedId === p.id ? null : p.id)}
+              onToggleContacted={() => toggleContacted(p)}
+              onUpdateProperty={updateProperty}
+            />
+          ))}
+        </div>
       )}
 
       {/* No phone */}
       {noPhone.length > 0 && (
-        <div className="mt-8">
-          <p className="text-xs text-[var(--color-text-tertiary)] uppercase tracking-wide mb-2 flex items-center gap-1.5">
+        <div className="mt-10">
+          <p className="text-xs text-[var(--color-text-tertiary)] uppercase tracking-wide mb-3 flex items-center gap-1.5">
             <PhoneOff size={12} />
-            Sin telefono ({noPhone.length})
+            Sin teléfono ({noPhone.length})
           </p>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-2">
             {noPhone.map((p) => (
               <Link
                 key={p.id}
                 to={`/property/${p.id}`}
-                className="px-2.5 py-1 text-xs bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-md hover:border-[var(--color-border-strong)] transition-colors"
+                className="px-3 py-2 text-xs bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-md hover:border-[var(--color-border-strong)] transition-colors"
               >
                 {p.zone || p.address} · {formatPrice(p.price)}
               </Link>
@@ -159,10 +154,6 @@ export function ToContact() {
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Card — compact, single-row feel with thumbnail
-// ---------------------------------------------------------------------------
 
 function ContactCard({
   property,
@@ -178,121 +169,141 @@ function ContactCard({
   onUpdateProperty: (id: string, data: Partial<Property>) => Promise<void>;
 }) {
   const isContacted = property.status === 'contacted';
-  const notes = property.callNotes || '';
-  const preview = notes.length > 40 ? notes.slice(0, 40) + '...' : notes;
   const thumb = property.photos?.[0];
+  const displaySize = property.builtSquareMeters || property.squareMeters;
+  const agency = property.contact?.agency;
+  const notes = property.callNotes;
+  const preview = notes && notes.length > 50 ? notes.slice(0, 50) + '…' : notes;
 
   return (
     <div
-      className={`rounded-lg border transition-colors ${
+      className={`group rounded-lg border overflow-hidden transition-all ${
         isContacted
-          ? 'border-[var(--color-visited)] bg-[var(--color-bg)]'
-          : 'border-[var(--color-discarded)] bg-[var(--color-bg)]'
+          ? 'border-[var(--color-visited)]/40'
+          : 'border-[var(--color-border)] hover:border-[var(--color-border-strong)]'
       }`}
     >
-      {/* Compact row */}
-      <div
-        className="flex items-center gap-2 px-3 py-2.5 cursor-pointer"
-        onClick={onToggleExpand}
-      >
-        {/* Thumbnail */}
-        {thumb && (
-          <img
-            src={getImageUrl(thumb)}
-            alt=""
-            className="w-9 h-9 rounded object-cover flex-shrink-0 bg-[var(--color-bg-secondary)]"
-            loading="lazy"
-            decoding="async"
-            referrerPolicy="no-referrer"
-            onError={(e) => {
-              (e.target as HTMLImageElement).style.display = 'none';
-            }}
-          />
-        )}
+      <div className="flex">
+        {/* Thumbnail - fixed aspect ratio */}
+        <Link to={`/property/${property.id}`} className="flex-shrink-0 w-32 sm:w-40">
+          <div className="relative aspect-square bg-[var(--color-bg-secondary)]">
+            {thumb ? (
+              <img
+                src={getImageUrl(thumb)}
+                alt={property.address}
+                className="absolute inset-0 w-full h-full object-cover"
+                loading="lazy"
+                decoding="async"
+                referrerPolicy="no-referrer"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center text-2xl opacity-20">🏠</div>
+            )}
+            {isContacted && (
+              <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--color-visited)] text-[var(--color-visited-text)]">
+                Contactado
+              </div>
+            )}
+          </div>
+        </Link>
 
-        {/* Status icon */}
-        {isContacted ? (
-          <CheckCircle2 size={14} className="text-[var(--color-visited-text)] flex-shrink-0" />
-        ) : (
-          <Circle size={14} className="text-[var(--color-discarded-text)] flex-shrink-0" />
-        )}
-
-        {/* Zone + subtitle */}
-        <div className="flex-1 min-w-0">
-          <span className="text-sm font-medium text-[var(--color-text)] truncate block">
-            {property.zone || property.address}
-          </span>
-          {/* Subtitle */}
-          <p className="text-[11px] text-[var(--color-text-secondary)] truncate leading-tight mt-0.5">
-            {[
-              property.rooms > 0 && `${property.rooms} hab`,
-              property.squareMeters > 0 && `${property.squareMeters} m²`,
-              property.floor,
-            ].filter(Boolean).join(' · ')}
-          </p>
-          {/* Notes preview */}
-          {preview && (
-            <p className="text-[11px] text-[var(--color-text-tertiary)] truncate leading-tight mt-0.5">
-              {preview}
+        {/* Content */}
+        <div className="flex-1 min-w-0 p-3 sm:p-4 flex flex-col justify-between">
+          {/* Top */}
+          <div>
+            <div className="flex items-start justify-between gap-2 mb-0.5">
+              <Link to={`/property/${property.id}`} className="min-w-0">
+                <h3
+                  className="text-base font-medium text-[var(--color-text)] truncate"
+                  style={{ fontFamily: 'var(--font-serif)' }}
+                >
+                  {formatPrice(property.price)}
+                </h3>
+              </Link>
+              <Link
+                to={`/property/${property.id}`}
+                className="p-1 rounded-md text-[var(--color-text-tertiary)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg-hover)] transition-colors flex-shrink-0"
+              >
+                <ExternalLink size={14} strokeWidth={1.5} />
+              </Link>
+            </div>
+            <p className="text-sm text-[var(--color-text-secondary)] truncate mb-1">
+              {property.zone || property.address}
             </p>
-          )}
-        </div>
+            <div className="flex items-center gap-2.5 text-xs text-[var(--color-text-tertiary)]">
+              {displaySize > 0 && (
+                <span className="flex items-center gap-1">
+                  <Maximize size={11} strokeWidth={1.5} /> {displaySize} m²
+                </span>
+              )}
+              {property.rooms > 0 && (
+                <span className="flex items-center gap-1">
+                  <BedDouble size={11} strokeWidth={1.5} /> {property.rooms} hab
+                </span>
+              )}
+              {property.floor && (
+                <span className="flex items-center gap-1">
+                  <Building size={11} strokeWidth={1.5} /> {property.floor}
+                </span>
+              )}
+            </div>
+            {agency && (
+              <p className="text-[11px] text-[var(--color-text-tertiary)] mt-1 truncate">{agency}</p>
+            )}
+          </div>
 
-        {/* Price + Actions */}
-        <div className="flex items-center gap-1 flex-shrink-0">
-          <span
-            className="text-xs font-medium text-[var(--color-text-secondary)] tabular-nums mr-1"
-            style={{ fontFamily: 'var(--font-serif)' }}
-          >
-            {formatPrice(property.price)}
-          </span>
-          <Link
-            to={`/property/${property.id}`}
-            onClick={(e) => e.stopPropagation()}
-            className="p-1.5 rounded-md hover:bg-[var(--color-bg-hover)] transition-colors text-[var(--color-text-tertiary)] hover:text-[var(--color-accent)]"
-            title="Ver ficha"
-          >
-            <ExternalLink size={15} strokeWidth={1.5} />
-          </Link>
-          <a
-            href={`tel:${property.contact?.phone}`}
-            onClick={(e) => e.stopPropagation()}
-            className="p-1.5 rounded-md hover:bg-[var(--color-bg-hover)] transition-colors text-[var(--color-accent)]"
-            title="Llamar"
-          >
-            <Phone size={15} strokeWidth={1.5} />
-          </a>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleContacted();
-            }}
-            className={`p-1.5 rounded-md transition-colors ${
-              isContacted
-                ? 'text-[var(--color-visited-text)] hover:bg-[var(--color-visited)]'
-                : 'text-[var(--color-text-tertiary)] hover:bg-[var(--color-bg-hover)]'
-            }`}
-            title={isContacted ? 'Desmarcar contactado' : 'Marcar contactado'}
-          >
-            <Check size={15} strokeWidth={2} />
-          </button>
+          {/* Bottom: phone + actions */}
+          <div className="flex items-center gap-2 mt-3">
+            <a
+              href={`tel:${property.contact?.phone}`}
+              className="inline-flex items-center gap-2 h-8 px-3 rounded-md text-sm font-medium bg-[var(--color-text)] text-white hover:opacity-90 transition-opacity"
+            >
+              <Phone size={13} strokeWidth={1.5} />
+              <span className="tabular-nums">{property.contact?.phone}</span>
+            </a>
+            {property.contact?.phone2 && (
+              <a
+                href={`tel:${property.contact.phone2}`}
+                className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md text-xs bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)] transition-colors border border-[var(--color-border)]"
+                title={property.contact.phone2}
+              >
+                <Phone size={12} strokeWidth={1.5} />
+                2º
+              </a>
+            )}
+            <button
+              onClick={onToggleContacted}
+              className={`h-8 px-2.5 rounded-md text-xs font-medium transition-all inline-flex items-center gap-1.5 ml-auto ${
+                isContacted
+                  ? 'bg-[var(--color-visited)] text-[var(--color-visited-text)]'
+                  : 'bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)] border border-[var(--color-border)]'
+              }`}
+            >
+              <Check size={13} strokeWidth={2} />
+              <span className="hidden sm:inline">{isContacted ? 'Contactado' : 'Marcar'}</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Expanded details */}
+      {/* Notes preview or expand */}
+      <button
+        onClick={onToggleExpand}
+        className="w-full flex items-center gap-2 px-4 py-2 text-xs text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)] border-t border-[var(--color-border)] transition-colors"
+      >
+        <span className="flex-1 text-left truncate">
+          {preview || 'Añadir notas...'}
+        </span>
+        <ChevronDown size={12} className={`flex-shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+      </button>
+
       {isExpanded && (
-        <ExpandedDetails
-          property={property}
-          onSave={onUpdateProperty}
-        />
+        <ExpandedDetails property={property} onSave={onUpdateProperty} />
       )}
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Expanded details: notes, listing link, contact editing
-// ---------------------------------------------------------------------------
 
 function ExpandedDetails({
   property,
@@ -363,56 +374,63 @@ function ExpandedDetails({
     showSaved();
   };
 
-  const agency = property.contact?.agency || '';
   const inputClass =
-    'w-full px-2 py-1.5 text-xs bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-md focus:outline-none focus:border-[var(--color-accent)] transition-colors';
+    'w-full px-3 py-2 text-sm bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-md focus:outline-none focus:border-[var(--color-accent)] transition-colors';
 
   return (
-    <div className="px-3 pb-3 space-y-2">
-      <div className="h-px bg-[var(--color-border)]" />
+    <div className="px-4 pb-4 space-y-3 border-t border-[var(--color-border)]">
+      {/* Notes */}
+      <div className="relative pt-3">
+        <textarea
+          ref={textareaRef}
+          value={notes}
+          onChange={(e) => handleNotesChange(e.target.value)}
+          placeholder="Notas sobre la llamada, disponibilidad, lo que han dicho..."
+          rows={2}
+          className="w-full px-3 py-2.5 text-sm bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-md focus:outline-none focus:border-[var(--color-accent)] resize-none transition-colors overflow-hidden"
+        />
+        {saved && (
+          <span className="absolute right-2 bottom-2 text-[10px] text-[var(--color-visited-text)]">
+            Guardado
+          </span>
+        )}
+      </div>
 
-      {/* Info row + action buttons */}
+      {/* Edit contact toggle */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3 text-[11px] text-[var(--color-text-tertiary)]">
-          {agency && <span>{agency}</span>}
-          <span>{property.contact?.phone}</span>
-          {property.contact?.phone2 && <span>{property.contact.phone2}</span>}
-        </div>
-        <div className="flex items-center gap-0.5">
-          {property.url && (
-            <a
-              href={property.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-1.5 rounded-md hover:bg-[var(--color-bg-hover)] text-[var(--color-text-tertiary)] hover:text-[var(--color-accent)] transition-colors"
-              title="Ver anuncio"
-            >
-              <ExternalLink size={13} strokeWidth={1.5} />
-            </a>
-          )}
-          <button
-            onClick={() => setEditing(!editing)}
-            className={`p-1.5 rounded-md transition-colors ${
-              editing
-                ? 'text-[var(--color-accent)] bg-[var(--color-bg-hover)]'
-                : 'text-[var(--color-text-tertiary)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg-hover)]'
-            }`}
-            title="Editar contacto"
+        <button
+          onClick={() => setEditing(!editing)}
+          className={`inline-flex items-center gap-1.5 text-xs transition-colors ${
+            editing
+              ? 'text-[var(--color-accent)]'
+              : 'text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)]'
+          }`}
+        >
+          <Pencil size={12} strokeWidth={1.5} />
+          Editar contacto
+        </button>
+        {property.url && (
+          <a
+            href={property.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-xs text-[var(--color-accent)] hover:underline"
           >
-            <Pencil size={13} strokeWidth={1.5} />
-          </button>
-        </div>
+            <ExternalLink size={11} strokeWidth={1.5} />
+            Ver anuncio
+          </a>
+        )}
       </div>
 
       {/* Edit contact fields */}
       {editing && (
-        <div className="grid grid-cols-2 gap-1.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <input
             type="tel"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             onBlur={() => handleContactBlur('phone', phone)}
-            placeholder="Teléfono"
+            placeholder="Teléfono principal"
             className={inputClass}
           />
           <input
@@ -429,27 +447,10 @@ function ExpandedDetails({
             onChange={(e) => setEmail(e.target.value)}
             onBlur={() => handleContactBlur('email', email)}
             placeholder="Email"
-            className={`${inputClass} col-span-2`}
+            className={`${inputClass} sm:col-span-2`}
           />
         </div>
       )}
-
-      {/* Notes */}
-      <div className="relative">
-        <textarea
-          ref={textareaRef}
-          value={notes}
-          onChange={(e) => handleNotesChange(e.target.value)}
-          placeholder="Notas sobre la llamada, disponibilidad..."
-          rows={3}
-          className="w-full px-2.5 py-2 text-sm bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-md focus:outline-none focus:border-[var(--color-accent)] resize-none transition-colors overflow-hidden"
-        />
-        {saved && (
-          <span className="absolute right-2 bottom-2 text-[10px] text-[var(--color-visited-text)]">
-            Guardado
-          </span>
-        )}
-      </div>
     </div>
   );
 }

@@ -54,6 +54,7 @@ export interface Property {
   visitChecklist?: Record<string, boolean>;
   visitChecklistNotes?: Record<string, string>;
   visitChecklistAttachments?: Record<string, ChecklistAttachment[]>;
+  archived?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -67,12 +68,11 @@ export interface Call {
   notes: string;
 }
 
-export interface Reminder {
+export interface Visit {
   id: string;
   propertyId: string;
   date: Date;
-  message: string;
-  completed: boolean;
+  notes: string;
 }
 
 export const STATUS_LABELS: Record<PropertyStatus, string> = {

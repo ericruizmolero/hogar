@@ -11,8 +11,7 @@ import {
   Mail,
   Building,
   Edit,
-  Trash2,
-  Bell,
+  Archive,
   GitCompare,
   Car,
   Wrench,
@@ -28,7 +27,7 @@ import {
   ClipboardCheck,
 } from 'lucide-react';
 import { useProperties } from '../hooks/useProperties';
-import { useReminders } from '../hooks/useReminders';
+import { useVisits } from '../hooks/useVisits';
 import { PropertyForm } from '../components/PropertyForm';
 import { ImageSlider } from '../components/ImageSlider';
 import { Button } from '../components/ui/Button';
@@ -54,16 +53,11 @@ const STATUS_STYLES: Record<string, string> = {
 export function Property() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { properties, updateProperty, updateStatus, deleteProperty } = useProperties();
-  const { addReminder } = useReminders();
+  const { properties, updateProperty, updateStatus, archiveProperty } = useProperties();
+  const { visits } = useVisits();
 
   const [showEditForm, setShowEditForm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showReminderForm, setShowReminderForm] = useState(false);
-  const [reminderData, setReminderData] = useState({
-    date: '',
-    message: '',
-  });
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [showCompleteForm, setShowCompleteForm] = useState(false);
   const [completeHtml, setCompleteHtml] = useState('');
@@ -90,26 +84,14 @@ export function Property() {
     );
   }
 
-  const handleDelete = async () => {
-    await deleteProperty(property.id);
+  const handleArchive = async () => {
+    await archiveProperty(property.id);
     navigate('/');
   };
 
   const handleUpdate = async (data: Parameters<typeof updateProperty>[1]) => {
     await updateProperty(property.id, data);
     setShowEditForm(false);
-  };
-
-  const handleAddReminder = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await addReminder({
-      propertyId: property.id,
-      date: new Date(reminderData.date),
-      message: reminderData.message,
-      completed: false,
-    });
-    setShowReminderForm(false);
-    setReminderData({ date: '', message: '' });
   };
 
   const handleSaveLocation = async (lat: number, lng: number) => {
@@ -208,6 +190,15 @@ export function Property() {
 
   const pricePerMeter = property.pricePerMeter || (property.squareMeters > 0 ? Math.round(property.price / property.squareMeters) : 0);
 
+  // Next upcoming visit for this property
+  const nextVisit = (() => {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return visits
+      .filter((v) => v.propertyId === property.id && v.date >= startOfToday)
+      .sort((a, b) => a.date.getTime() - b.date.getTime())[0] || null;
+  })();
+
   // Evaluate property against requirements
   const evaluation = evaluateProperty(property);
 
@@ -263,19 +254,15 @@ export function Property() {
             <FileCode size={14} strokeWidth={1.5} className="mr-1.5" />
             Actualizar con HTML
           </Button>
-          <Button size="sm" variant="secondary" onClick={() => setShowReminderForm(true)}>
-            <Bell size={14} strokeWidth={1.5} className="mr-1.5" />
-            Recordatorio
-          </Button>
           <Link to={`/compare?ids=${property.id}`}>
             <Button size="sm" variant="secondary">
               <GitCompare size={14} strokeWidth={1.5} className="mr-1.5" />
               Comparar
             </Button>
           </Link>
-          <Button size="sm" variant="danger" onClick={() => setShowDeleteConfirm(true)}>
-            <Trash2 size={14} strokeWidth={1.5} className="mr-1.5" />
-            Eliminar
+          <Button size="sm" variant="secondary" onClick={() => setShowDeleteConfirm(true)}>
+            <Archive size={14} strokeWidth={1.5} className="mr-1.5" />
+            Archivar
           </Button>
         </div>
 
@@ -298,9 +285,17 @@ export function Property() {
                 {formatPrice(pricePerMeter)}/m²
               </p>
             </div>
-            <span className={`px-3 py-1 rounded-md text-sm font-medium ${STATUS_STYLES[property.status]}`}>
-              {STATUS_LABELS[property.status]}
-            </span>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {nextVisit && (
+                <span className="px-2.5 py-1 rounded-md text-xs font-medium bg-[var(--color-favorite)] text-[var(--color-favorite-text)] flex items-center gap-1.5">
+                  <Calendar size={12} />
+                  {nextVisit.date.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })} {nextVisit.date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              )}
+              <span className={`px-3 py-1 rounded-md text-sm font-medium ${STATUS_STYLES[property.status]}`}>
+                {STATUS_LABELS[property.status]}
+              </span>
+            </div>
           </div>
 
           {property.title && (
@@ -311,9 +306,12 @@ export function Property() {
             <MapPin size={16} strokeWidth={1.5} />
             <span>{property.zone || property.address}</span>
             {property.latitude && property.longitude && (
-              <span className="text-xs text-[var(--color-visited-text)] bg-[var(--color-visited)] px-1.5 py-0.5 rounded">
-                En mapa
-              </span>
+              <Link
+                to="/map"
+                className="text-xs text-[var(--color-visited-text)] bg-[var(--color-visited)] px-1.5 py-0.5 rounded hover:opacity-80 transition-opacity"
+              >
+                Ver en mapa
+              </Link>
             )}
             <button
               onClick={() => setShowLocationPicker(true)}
@@ -600,43 +598,19 @@ export function Property() {
         />
       </Modal>
 
-      <Modal isOpen={showDeleteConfirm} onClose={() => setShowDeleteConfirm(false)} title="Eliminar propiedad">
+      <Modal isOpen={showDeleteConfirm} onClose={() => setShowDeleteConfirm(false)} title="Archivar propiedad">
         <p className="text-[var(--color-text-secondary)] mb-4">
-          ¿Estás seguro de que quieres eliminar esta propiedad? Esta acción no se puede deshacer.
+          La propiedad se moverá a archivados. Podrás recuperarla en cualquier momento.
         </p>
         <div className="flex gap-2">
-          <Button variant="danger" onClick={handleDelete}>
-            Eliminar
+          <Button onClick={handleArchive}>
+            <Archive size={14} className="mr-1.5" />
+            Archivar
           </Button>
           <Button variant="secondary" onClick={() => setShowDeleteConfirm(false)}>
             Cancelar
           </Button>
         </div>
-      </Modal>
-
-      <Modal isOpen={showReminderForm} onClose={() => setShowReminderForm(false)} title="Crear recordatorio">
-        <form onSubmit={handleAddReminder} className="space-y-4">
-          <Input
-            label="Fecha"
-            type="datetime-local"
-            value={reminderData.date}
-            onChange={(e) => setReminderData({ ...reminderData, date: e.target.value })}
-            required
-          />
-          <Input
-            label="Mensaje"
-            value={reminderData.message}
-            onChange={(e) => setReminderData({ ...reminderData, message: e.target.value })}
-            placeholder="Llamar para confirmar visita..."
-            required
-          />
-          <div className="flex gap-2">
-            <Button type="submit">Crear</Button>
-            <Button variant="secondary" onClick={() => setShowReminderForm(false)}>
-              Cancelar
-            </Button>
-          </div>
-        </form>
       </Modal>
 
       <LocationPicker
