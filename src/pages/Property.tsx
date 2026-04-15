@@ -272,35 +272,33 @@ export function Property() {
 
         {/* Header */}
         <div>
-          <div className="flex items-start justify-between gap-4 mb-3">
-            <div>
-              <h1
-                className="text-3xl font-medium text-[var(--color-text)] mb-1"
-                style={{ fontFamily: 'var(--font-serif)' }}
-              >
-                {property.isNewBuild
-                  ? formatPrice(Math.round(property.price * 1.10))
-                  : formatPrice(property.price)}
-              </h1>
-              <p className="text-[var(--color-text-secondary)]">
-                {formatPrice(pricePerMeter)}/m²
-                {property.isNewBuild && (
-                  <span className="ml-2 text-xs text-[var(--color-favorite-text)]">
-                    ({formatPrice(property.price)} + 10% IVA)
-                  </span>
-                )}
-              </p>
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="mb-3">
+            <h1
+              className="text-3xl font-medium text-[var(--color-text)] mb-1"
+              style={{ fontFamily: 'var(--font-serif)' }}
+            >
+              {property.isNewBuild
+                ? formatPrice(Math.round(property.price * 1.10))
+                : formatPrice(property.price)}
+            </h1>
+            <p className="text-[var(--color-text-secondary)] mb-2">
+              {formatPrice(pricePerMeter)}/m²
+              {property.isNewBuild && (
+                <span className="ml-2 text-xs text-[var(--color-favorite-text)]">
+                  ({formatPrice(property.price)} + 10% IVA)
+                </span>
+              )}
+            </p>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className={`px-2.5 py-1 rounded-md text-xs font-medium ${STATUS_STYLES[property.status]}`}>
+                {STATUS_LABELS[property.status]}
+              </span>
               {nextVisit && (
                 <span className="px-2.5 py-1 rounded-md text-xs font-medium bg-[var(--color-favorite)] text-[var(--color-favorite-text)] flex items-center gap-1.5">
-                  <Calendar size={12} />
+                  <Calendar size={11} />
                   {nextVisit.date.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })} {nextVisit.date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
                 </span>
               )}
-              <span className={`px-3 py-1 rounded-md text-sm font-medium ${STATUS_STYLES[property.status]}`}>
-                {STATUS_LABELS[property.status]}
-              </span>
             </div>
           </div>
 
@@ -601,9 +599,26 @@ export function Property() {
             >
               Notas
             </h3>
-            <p className="text-[var(--color-text-secondary)] text-sm whitespace-pre-wrap">
-              {property.notes}
-            </p>
+            <div className="text-[var(--color-text-secondary)] text-sm space-y-2 leading-relaxed">
+              {(() => {
+                const text = property.notes;
+                // If it already has line breaks, split by them
+                if (text.includes('\n')) {
+                  return text.split(/\n\s*\n|\n/).filter(Boolean).map((p, i) => (
+                    <p key={i}>{p.trim()}</p>
+                  ));
+                }
+                // Otherwise split by ". " followed by uppercase letter (sentence boundary)
+                const parts = text.split(/(?<=\.)\s+(?=[A-ZÁÉÍÓÚÑ])/).filter(Boolean);
+                if (parts.length <= 1) return <p>{text}</p>;
+                // Group into paragraphs of 2-3 sentences
+                const paragraphs: string[] = [];
+                for (let i = 0; i < parts.length; i += 2) {
+                  paragraphs.push(parts.slice(i, i + 2).join(' '));
+                }
+                return paragraphs.map((p, i) => <p key={i}>{p.trim()}</p>);
+              })()}
+            </div>
           </div>
         )}
 

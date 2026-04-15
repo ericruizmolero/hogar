@@ -222,22 +222,17 @@ export function MiniCalendar() {
       {/* Collapsed header bar - always visible, single line */}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-2 px-4 h-10 hover:bg-[var(--color-bg-hover)] transition-colors overflow-hidden"
+        className="w-full h-10 px-4 flex items-center gap-2 hover:bg-[var(--color-bg-hover)] transition-colors overflow-hidden"
       >
-        <Calendar size={15} strokeWidth={1.5} className="text-[var(--color-text-secondary)] flex-shrink-0" />
-        <span
-          className="text-sm font-medium text-[var(--color-text)] flex-shrink-0"
-          style={{ fontFamily: 'var(--font-serif)' }}
-        >
-          Visitas
-        </span>
+        <Calendar size={14} strokeWidth={1.5} className="text-[var(--color-text-secondary)] flex-shrink-0" />
+        <span className="text-sm font-medium text-[var(--color-text)] flex-shrink-0 leading-none">Visitas</span>
         {upcomingVisits.length > 0 && (
           <span className="text-[11px] leading-none px-1.5 py-0.5 rounded-full bg-[var(--color-contacted)] text-[var(--color-contacted-text)] font-medium flex-shrink-0">
             {upcomingVisits.length}
           </span>
         )}
         {!expanded && nextVisit && (
-          <span className="text-xs text-[var(--color-text-tertiary)] truncate hidden sm:block">
+          <span className="text-xs leading-none text-[var(--color-text-tertiary)] truncate hidden sm:block">
             — {nextVisit.date.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })} {formatTime(nextVisit.date)}
             {nextVisitProperty && ` · ${nextVisitProperty.zone || nextVisitProperty.address}`}
           </span>
@@ -248,10 +243,10 @@ export function MiniCalendar() {
           className="p-1 rounded-md text-[var(--color-text-tertiary)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg-active)] transition-all flex-shrink-0"
           title="Nueva visita"
         >
-          <Plus size={15} strokeWidth={1.5} />
+          <Plus size={14} strokeWidth={1.5} />
         </span>
         <ChevronDown
-          size={15}
+          size={14}
           strokeWidth={1.5}
           className={`text-[var(--color-text-tertiary)] transition-transform duration-200 flex-shrink-0 ${expanded ? 'rotate-180' : ''}`}
         />

@@ -450,7 +450,7 @@ export function Simulator() {
                   const v = parseInt(e.target.value);
                   setCustomPrice(isNaN(v) ? null : v);
                 }}
-                className="w-28 px-2 py-1 text-xs text-right bg-[var(--color-bg)] border border-[var(--color-border)] rounded-md focus:outline-none focus:border-[var(--color-border-strong)]"
+                className="w-28 px-2.5 py-1.5 text-xs text-right bg-[var(--color-bg)] border border-[var(--color-border)] rounded-md focus:outline-none focus:border-[var(--color-border-strong)] tabular-nums"
               />
               <span className="text-xs text-[var(--color-text-tertiary)]">€</span>
               {customPrice !== null && customPrice !== basePrice && (
@@ -587,12 +587,12 @@ export function Simulator() {
                     <span className="text-[var(--color-text)]">{selected.builtSquareMeters || selected.squareMeters} m²</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1">
-                      <span className="text-[var(--color-text-secondary)]">Coste/m²</span>
-                      <button onClick={() => { const v = Math.max(0, renoPerSqm - 50); setRenoPerSqm(v); setRenovationBudget((selected.builtSquareMeters || selected.squareMeters) * v); }} className="text-[var(--color-text-tertiary)] hover:text-[var(--color-text)] text-xs px-0.5">-</button>
-                      <button onClick={() => { const v = renoPerSqm + 50; setRenoPerSqm(v); setRenovationBudget((selected.builtSquareMeters || selected.squareMeters) * v); }} className="text-[var(--color-text-tertiary)] hover:text-[var(--color-text)] text-xs px-0.5">+</button>
+                    <span className="text-[var(--color-text-secondary)]">Coste/m²</span>
+                    <div className="flex items-center">
+                      <button onClick={() => { const v = Math.max(0, renoPerSqm - 50); setRenoPerSqm(v); setRenovationBudget((selected.builtSquareMeters || selected.squareMeters) * v); }} className="w-6 h-6 flex items-center justify-center text-[var(--color-text-tertiary)] hover:text-[var(--color-text)] text-sm transition-colors">-</button>
+                      <button onClick={() => { const v = renoPerSqm + 50; setRenoPerSqm(v); setRenovationBudget((selected.builtSquareMeters || selected.squareMeters) * v); }} className="w-6 h-6 flex items-center justify-center text-[var(--color-text-tertiary)] hover:text-[var(--color-text)] text-sm transition-colors">+</button>
+                      <span className="text-sm font-medium text-[var(--color-text)] tabular-nums ml-1 w-20 text-right">{renoPerSqm} €/m²</span>
                     </div>
-                    <span className="text-[var(--color-text)] tabular-nums">{renoPerSqm} €/m²</span>
                   </div>
                   <div className="flex items-center justify-between pt-1.5 border-t border-[var(--color-border)] font-medium text-[var(--color-text)]">
                     <span>Total reforma</span>
@@ -612,7 +612,7 @@ export function Simulator() {
                       const sqm = selected.builtSquareMeters || selected.squareMeters;
                       if (sqm > 0) setRenoPerSqm(Math.round(v / sqm));
                     }}
-                    className="flex-1 px-2 py-1 text-xs bg-[var(--color-bg)] border border-[var(--color-border)] rounded-md focus:outline-none focus:border-[var(--color-border-strong)] text-right tabular-nums"
+                    className="flex-1 px-2.5 py-1.5 text-xs bg-[var(--color-bg)] border border-[var(--color-border)] rounded-md focus:outline-none focus:border-[var(--color-border-strong)] text-right tabular-nums"
                   />
                   <span className="text-[11px] text-[var(--color-text-tertiary)]">€</span>
                 </div>
@@ -662,20 +662,20 @@ export function Simulator() {
             </div>
             {/* Inline rate + years controls */}
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1">
-                <span className="text-[var(--color-text-secondary)]">Interés</span>
-                <button onClick={() => setRate(Math.max(0, +(rate - 0.1).toFixed(1)))} className="text-[var(--color-text-tertiary)] hover:text-[var(--color-text)] text-xs px-0.5">-</button>
-                <button onClick={() => setRate(+(rate + 0.1).toFixed(1))} className="text-[var(--color-text-tertiary)] hover:text-[var(--color-text)] text-xs px-0.5">+</button>
+              <span className="text-[var(--color-text-secondary)]">Interés</span>
+              <div className="flex items-center">
+                <button onClick={() => setRate(Math.max(0, +(rate - 0.1).toFixed(1)))} className="w-6 h-6 flex items-center justify-center text-[var(--color-text-tertiary)] hover:text-[var(--color-text)] text-sm transition-colors">-</button>
+                <button onClick={() => setRate(+(rate + 0.1).toFixed(1))} className="w-6 h-6 flex items-center justify-center text-[var(--color-text-tertiary)] hover:text-[var(--color-text)] text-sm transition-colors">+</button>
+                <span className="text-sm font-medium text-[var(--color-text)] tabular-nums ml-1 w-16 text-right">{rate}%</span>
               </div>
-              <span className="text-sm font-medium text-[var(--color-text)] tabular-nums">{rate}%</span>
             </div>
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1">
-                <span className="text-[var(--color-text-secondary)]">Plazo</span>
-                <button onClick={() => setYears(Math.max(1, years - 1))} className="text-[var(--color-text-tertiary)] hover:text-[var(--color-text)] text-xs px-0.5">-</button>
-                <button onClick={() => setYears(Math.min(40, years + 1))} className="text-[var(--color-text-tertiary)] hover:text-[var(--color-text)] text-xs px-0.5">+</button>
+              <span className="text-[var(--color-text-secondary)]">Plazo</span>
+              <div className="flex items-center">
+                <button onClick={() => setYears(Math.max(1, years - 1))} className="w-6 h-6 flex items-center justify-center text-[var(--color-text-tertiary)] hover:text-[var(--color-text)] text-sm transition-colors">-</button>
+                <button onClick={() => setYears(Math.min(40, years + 1))} className="w-6 h-6 flex items-center justify-center text-[var(--color-text-tertiary)] hover:text-[var(--color-text)] text-sm transition-colors">+</button>
+                <span className="text-sm font-medium text-[var(--color-text)] tabular-nums ml-1 w-16 text-right">{years} años</span>
               </div>
-              <span className="text-sm font-medium text-[var(--color-text)] tabular-nums">{years} años</span>
             </div>
             <div className="flex justify-between">
               <span className="text-[var(--color-text-secondary)]">Cuota hipoteca</span>
@@ -826,10 +826,11 @@ export function Simulator() {
               return (
                 <div
                   key={sim.id}
-                  className={`group rounded-lg border overflow-hidden transition-colors ${
+                  onClick={() => loadSimulation(sim)}
+                  className={`group rounded-lg border overflow-hidden transition-colors cursor-pointer ${
                     editingSimId === sim.id
                       ? 'border-[var(--color-accent)] bg-[var(--color-contacted)]/20'
-                      : 'border-[var(--color-border)] hover:border-[var(--color-border-strong)]'
+                      : 'border-[var(--color-border)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-bg-hover)]'
                   }`}
                 >
                   <div className="flex">
@@ -892,19 +893,13 @@ export function Simulator() {
                       {/* Actions */}
                       <div className="flex items-center gap-3 mt-2">
                         <button
-                          onClick={() => loadSimulation(sim)}
-                          className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text)] transition-colors"
-                        >
-                          Ver
-                        </button>
-                        <button
-                          onClick={() => loadSimulation(sim, true)}
+                          onClick={(e) => { e.stopPropagation(); loadSimulation(sim, true); }}
                           className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text)] transition-colors flex items-center gap-1"
                         >
                           <Pencil size={10} /> Editar
                         </button>
                         <button
-                          onClick={() => deleteSimulation(sim.id)}
+                          onClick={(e) => { e.stopPropagation(); deleteSimulation(sim.id); }}
                           className="text-xs text-[var(--color-text-tertiary)] hover:text-[var(--color-discarded-text)] transition-colors flex items-center gap-1 ml-auto opacity-0 group-hover:opacity-100"
                         >
                           <Trash2 size={10} /> Eliminar

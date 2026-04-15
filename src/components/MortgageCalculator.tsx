@@ -33,22 +33,15 @@ export function MortgageCalculator({ propertyPrice, renovationType = 'no', prope
       {/* Header */}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full px-4 py-3 flex items-center justify-between bg-[var(--color-bg)] hover:bg-[var(--color-bg-hover)] transition-colors"
+        className="w-full h-11 px-4 flex items-center gap-2 bg-[var(--color-bg)] hover:bg-[var(--color-bg-hover)] transition-colors overflow-hidden"
       >
-        <div className="flex items-center gap-2">
-          <Calculator size={18} strokeWidth={1.5} className="text-[var(--color-accent)]" />
-          <span className="font-medium text-[var(--color-text)]" style={{ fontFamily: 'var(--font-serif)' }}>
-            ¿Puedo comprar este piso?
-          </span>
-        </div>
-        <div className="flex items-center gap-3">
-          {loadingProfile ? (
-            <span className="text-sm text-[var(--color-text-tertiary)]">Cargando...</span>
-          ) : (
-            <span className={`notion-tag ${verdict.style}`}>{verdict.text}</span>
-          )}
-          {expanded ? <ChevronUp size={18} className="text-[var(--color-text-tertiary)]" /> : <ChevronDown size={18} className="text-[var(--color-text-tertiary)]" />}
-        </div>
+        <Calculator size={15} strokeWidth={1.5} className="text-[var(--color-accent)] flex-shrink-0" />
+        <span className="text-sm font-medium text-[var(--color-text)] flex-shrink-0 truncate">Hipoteca</span>
+        {!loadingProfile && (
+          <span className={`notion-tag text-[10px] px-1.5 flex-shrink-0 ${verdict.style}`}>{verdict.text}</span>
+        )}
+        <span className="flex-1" />
+        {expanded ? <ChevronUp size={14} className="text-[var(--color-text-tertiary)] flex-shrink-0" /> : <ChevronDown size={14} className="text-[var(--color-text-tertiary)] flex-shrink-0" />}
       </button>
 
       {expanded && (

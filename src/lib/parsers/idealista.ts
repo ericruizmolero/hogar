@@ -286,11 +286,18 @@ export const parseIdealistaHtml: PlatformParser = (html: string, providedUrl: st
     },
     status: 'pending',
     notes: (() => {
-      // Descripción del anuncio
-      const descEl = doc.querySelector('.comment p, .comment, .adCommentsLanguage p, .adCommentsLanguage, [class*="comment"] p');
-      if (descEl) {
-        const t = descEl.textContent?.trim() || '';
-        if (t.length > 30) return t;
+      // Descripción del anuncio - preservar párrafos
+      const descContainer = doc.querySelector('.comment, .adCommentsLanguage, [class*="comment"]');
+      if (descContainer) {
+        const paragraphs = descContainer.querySelectorAll('p');
+        if (paragraphs.length > 0) {
+          const text = Array.from(paragraphs).map(p => p.textContent?.trim()).filter(Boolean).join('\n\n');
+          if (text.length > 30) return text;
+        }
+        // Fallback: innerHTML with br/p converted to newlines
+        const html = descContainer.innerHTML || '';
+        const text = html.replace(/<br\s*\/?>/gi, '\n').replace(/<\/p>\s*<p[^>]*>/gi, '\n\n').replace(/<[^>]+>/g, '').trim();
+        if (text.length > 30) return text;
       }
       const ogDesc = doc.querySelector('meta[property="og:description"]')?.getAttribute('content')?.trim();
       return ogDesc || '';
