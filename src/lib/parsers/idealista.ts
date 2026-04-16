@@ -286,21 +286,39 @@ export const parseIdealistaHtml: PlatformParser = (html: string, providedUrl: st
     },
     status: 'pending',
     notes: (() => {
-      // Descripción del anuncio - preservar párrafos
-      const descContainer = doc.querySelector('.comment, .adCommentsLanguage, [class*="comment"]');
-      if (descContainer) {
-        const paragraphs = descContainer.querySelectorAll('p');
+      // Descripción del anuncio - preservar párrafos.
+      // Usamos selectores específicos de la descripción pública del anuncio.
+      // Evitamos `[class*="comment"]` porque captura el widget personal del usuario
+      // ("Añadir tu nota", "Tu nota", "Editar") cuando está logueado en Idealista.
+      const UI_NOISE = /(a[ñn]adir tu nota|tu nota|añadir nota)/i;
+      const candidates = [
+        '#commentContent .adCommentsLanguage',
+        '#commentContent',
+        '.commentsContainer .adCommentsLanguage',
+        'section.comment .adCommentsLanguage',
+        'div.comment .adCommentsLanguage',
+        '.adCommentsLanguage',
+      ];
+      const extract = (el: Element): string => {
+        const paragraphs = el.querySelectorAll('p');
         if (paragraphs.length > 0) {
           const text = Array.from(paragraphs).map(p => p.textContent?.trim()).filter(Boolean).join('\n\n');
-          if (text.length > 30) return text;
+          if (text.length > 30 && !UI_NOISE.test(text)) return text;
         }
-        // Fallback: innerHTML with br/p converted to newlines
-        const html = descContainer.innerHTML || '';
+        const html = el.innerHTML || '';
         const text = html.replace(/<br\s*\/?>/gi, '\n').replace(/<\/p>\s*<p[^>]*>/gi, '\n\n').replace(/<[^>]+>/g, '').trim();
-        if (text.length > 30) return text;
+        if (text.length > 30 && !UI_NOISE.test(text)) return text;
+        return '';
+      };
+      for (const selector of candidates) {
+        const el = doc.querySelector(selector);
+        if (el) {
+          const text = extract(el);
+          if (text) return text;
+        }
       }
       const ogDesc = doc.querySelector('meta[property="og:description"]')?.getAttribute('content')?.trim();
-      return ogDesc || '';
+      return ogDesc && !UI_NOISE.test(ogDesc) ? ogDesc : '';
     })(),
   };
 };
