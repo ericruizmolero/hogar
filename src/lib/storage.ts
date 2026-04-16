@@ -2,6 +2,42 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from './firebase';
 
 /**
+ * Comprime una imagen local a un data URL JPEG mediante canvas.
+ * Reduce el ancho a maxWidth (manteniendo aspect ratio) y re-encodea a la calidad indicada.
+ */
+export async function fileToCompressedDataUrl(
+  file: File,
+  { maxWidth = 1200, quality = 0.8 }: { maxWidth?: number; quality?: number } = {},
+): Promise<string> {
+  const dataUrl: string = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error('No se pudo leer el archivo'));
+    reader.readAsDataURL(file);
+  });
+
+  const img: HTMLImageElement = await new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('Imagen inválida'));
+    image.src = dataUrl;
+  });
+
+  const ratio = img.width > maxWidth ? maxWidth / img.width : 1;
+  const width = Math.round(img.width * ratio);
+  const height = Math.round(img.height * ratio);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas no disponible');
+  ctx.drawImage(img, 0, 0, width, height);
+
+  return canvas.toDataURL('image/jpeg', quality);
+}
+
+/**
  * Descarga fotos externas a través del proxy y las sube a Firebase Storage.
  * Devuelve un array de URLs de Firebase Storage.
  * Si una foto ya es Firebase Storage o data:, se mantiene tal cual.

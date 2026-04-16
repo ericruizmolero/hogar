@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import {
   ArrowLeft,
   ExternalLink,
@@ -12,6 +12,7 @@ import {
   Building,
   Edit,
   Archive,
+  ArchiveRestore,
   GitCompare,
   Car,
   Wrench,
@@ -25,11 +26,13 @@ import {
   Loader2,
   ClipboardPaste,
   ClipboardCheck,
+  Images,
 } from 'lucide-react';
 import { useProperties } from '../hooks/useProperties';
 import { useVisits } from '../hooks/useVisits';
 import { PropertyForm } from '../components/PropertyForm';
 import { ImageSlider } from '../components/ImageSlider';
+import { PhotoManager } from '../components/PhotoManager';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
 import { formatPrice, formatDate, getProviderLabel } from '../lib/utils';
@@ -52,19 +55,29 @@ const STATUS_STYLES: Record<string, string> = {
 export function Property() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { properties, updateProperty, updateStatus, archiveProperty } = useProperties();
+  const location = useLocation();
+  const { allProperties, updateProperty, updateStatus, archiveProperty, unarchiveProperty } = useProperties();
   const { visits } = useVisits();
 
   const [showEditForm, setShowEditForm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [showCompleteForm, setShowCompleteForm] = useState(false);
+  const [showPhotoManager, setShowPhotoManager] = useState(false);
+
+  useEffect(() => {
+    const state = location.state as { openPhotos?: boolean } | null;
+    if (state?.openPhotos) {
+      setShowPhotoManager(true);
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location, navigate]);
   const [completeHtml, setCompleteHtml] = useState('');
   const [completePhone, setCompletePhone] = useState('');
   const [completing, setCompleting] = useState(false);
   const [completeError, setCompleteError] = useState('');
 
-  const property = properties.find((p) => p.id === id);
+  const property = allProperties.find((p) => p.id === id);
 
   if (!property) {
     return (
@@ -86,6 +99,10 @@ export function Property() {
   const handleArchive = async () => {
     await archiveProperty(property.id);
     navigate('/');
+  };
+
+  const handleUnarchive = async () => {
+    await unarchiveProperty(property.id);
   };
 
   const handleUpdate = async (data: Parameters<typeof updateProperty>[1]) => {
@@ -212,6 +229,27 @@ export function Property() {
         Volver
       </button>
 
+      {/* Archived property banner */}
+      {property.archived && (
+        <div className="mb-6 p-4 bg-[var(--color-bg-secondary)] rounded-lg border border-[var(--color-border)]">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <Archive size={16} strokeWidth={1.5} className="text-[var(--color-text-tertiary)]" />
+              <div>
+                <p className="font-medium text-[var(--color-text)]">Propiedad archivada</p>
+                <p className="text-sm text-[var(--color-text-secondary)]">
+                  Estás viendo una propiedad archivada en modo lectura
+                </p>
+              </div>
+            </div>
+            <Button size="sm" variant="secondary" onClick={handleUnarchive}>
+              <ArchiveRestore size={14} className="mr-1.5" />
+              Desarchivar
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Incomplete property banner */}
       {isIncomplete && (
         <div className="mb-6 p-4 bg-[var(--color-favorite)] rounded-lg">
@@ -249,6 +287,10 @@ export function Property() {
             <Edit size={14} strokeWidth={1.5} className="mr-1.5" />
             Editar
           </Button>
+          <Button size="sm" variant="secondary" onClick={() => setShowPhotoManager(true)}>
+            <Images size={14} strokeWidth={1.5} className="mr-1.5" />
+            Fotos ({property.photos?.length || 0})
+          </Button>
           <Button size="sm" variant="secondary" onClick={() => setShowCompleteForm(true)}>
             <FileCode size={14} strokeWidth={1.5} className="mr-1.5" />
             Actualizar con HTML
@@ -259,10 +301,17 @@ export function Property() {
               Comparar
             </Button>
           </Link>
-          <Button size="sm" variant="secondary" onClick={() => setShowDeleteConfirm(true)}>
-            <Archive size={14} strokeWidth={1.5} className="mr-1.5" />
-            Archivar
-          </Button>
+          {property.archived ? (
+            <Button size="sm" variant="secondary" onClick={handleUnarchive}>
+              <ArchiveRestore size={14} strokeWidth={1.5} className="mr-1.5" />
+              Desarchivar
+            </Button>
+          ) : (
+            <Button size="sm" variant="secondary" onClick={() => setShowDeleteConfirm(true)}>
+              <Archive size={14} strokeWidth={1.5} className="mr-1.5" />
+              Archivar
+            </Button>
+          )}
         </div>
 
         {/* Meta */}
@@ -643,6 +692,20 @@ export function Property() {
           initialData={property}
           onSubmit={handleUpdate}
           onCancel={() => setShowEditForm(false)}
+        />
+      </Modal>
+
+      <Modal
+        isOpen={showPhotoManager}
+        onClose={() => setShowPhotoManager(false)}
+        title="Gestionar fotos"
+      >
+        <PhotoManager
+          propertyId={property.id}
+          photos={property.photos || []}
+          onChange={async (photos) => {
+            await updateProperty(property.id, { photos });
+          }}
         />
       </Modal>
 

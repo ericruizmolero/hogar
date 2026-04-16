@@ -279,6 +279,7 @@ export function Simulator() {
       row('Devuelve al banco', fmt(calc.totalPaid / 2), 'muted');
       row('Cuota mensual', `${fmt(calc.totalMonthly / 2)}/mes`, 'muted');
       row('Si cancela deuda hoy', fmt((calc.person1Remaining - renoHalf) - calc.bankFinances / 2), 'muted');
+      row('Si cancela en plazos del banco', fmt((calc.person1Remaining - renoHalf) - calc.totalPaid / 2), 'muted');
 
       // ── Persona 2 ──
       section(n2);
@@ -294,6 +295,7 @@ export function Simulator() {
       row('Devuelve al banco', fmt(calc.totalPaid / 2), 'muted');
       row('Cuota mensual', `${fmt(calc.totalMonthly / 2)}/mes`, 'muted');
       row('Si cancela deuda hoy', fmt((calc.person2Remaining - renoHalf) - calc.bankFinances / 2), 'muted');
+      row('Si cancela en plazos del banco', fmt((calc.person2Remaining - renoHalf) - calc.totalPaid / 2), 'muted');
 
       // ── Deuda total ──
       y += gapSection;
@@ -754,6 +756,10 @@ export function Simulator() {
                   <div className="flex justify-between mt-1.5 pt-1.5 border-t border-dashed border-[var(--color-border)] text-xs text-[var(--color-text-tertiary)]">
                     <span>Si cancela deuda hoy</span>
                     <span>{fmt((p.remaining - renoHalf) - calc.bankFinances / 2)}</span>
+                  </div>
+                  <div className="flex justify-between text-xs text-[var(--color-text-tertiary)]">
+                    <span>Si cancela en plazos del banco</span>
+                    <span>{fmt((p.remaining - renoHalf) - calc.totalPaid / 2)}</span>
                   </div>
                 </div>
               );

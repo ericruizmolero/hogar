@@ -87,24 +87,36 @@ export function ToContact() {
       </div>
 
       {/* Filters */}
-      <div className="flex gap-1.5 mb-6">
+      <div className="flex flex-wrap gap-1.5 mb-6">
         {([
           { key: 'all', label: 'Todos', count: counts.all },
           { key: 'pending', label: 'Por contactar', count: counts.pending },
           { key: 'contacted', label: 'Contactados', count: counts.contacted },
-        ] as const).map(({ key, label, count }) => (
-          <button
-            key={key}
-            onClick={() => setFilter(key)}
-            className={`h-8 px-3 text-sm rounded-md transition-all inline-flex items-center ${
-              filter === key
-                ? 'bg-[var(--color-text)] text-white'
-                : 'bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)]'
-            }`}
-          >
-            {label} ({count})
-          </button>
-        ))}
+        ] as const).map(({ key, label, count }) => {
+          const active = filter === key;
+          return (
+            <button
+              key={key}
+              onClick={() => setFilter(key)}
+              className={`h-8 px-2.5 sm:px-3 rounded-md transition-all inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 text-xs sm:text-sm ${
+                active
+                  ? 'bg-[var(--color-text)] text-white'
+                  : 'bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)]'
+              }`}
+            >
+              <span>{label}</span>
+              <span
+                className={`inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded text-[10px] font-medium tabular-nums ${
+                  active
+                    ? 'bg-white/20 text-white'
+                    : 'bg-[var(--color-bg)] text-[var(--color-text-tertiary)]'
+                }`}
+              >
+                {count}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       {/* List */}

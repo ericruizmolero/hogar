@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
-import { Link } from 'react-router-dom';
-import { MapPin, Maximize, BedDouble, Bath, Building, Car, Wrench, Calendar, Archive, ExternalLink, Map } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { MapPin, Maximize, BedDouble, Bath, Building, Car, Wrench, Calendar, Archive, ArchiveRestore, Trash2, ExternalLink, Map, Images } from 'lucide-react';
 import type { Property, Visit } from '../types';
 import { STATUS_LABELS, RENOVATION_LABELS } from '../types';
 import { formatPrice, getImageUrl, getProviderLabel } from '../lib/utils';
@@ -14,6 +14,8 @@ interface PropertyCardProps {
   onSelect?: (id: string) => void;
   selectable?: boolean;
   onArchive?: (id: string) => Promise<void>;
+  onUnarchive?: (id: string) => Promise<void>;
+  onDelete?: (id: string) => void;
   showMortgageWidget?: boolean;
   nextVisit?: Visit;
 }
@@ -26,8 +28,10 @@ const STATUS_STYLES: Record<string, string> = {
   discarded: 'bg-[var(--color-discarded)] text-[var(--color-discarded-text)]',
 };
 
-export function PropertyCard({ property, selected, onSelect, selectable, onArchive, showMortgageWidget = false, nextVisit }: PropertyCardProps) {
+export function PropertyCard({ property, selected, onSelect, selectable, onArchive, onUnarchive, onDelete, showMortgageWidget = false, nextVisit }: PropertyCardProps) {
+  const navigate = useNavigate();
   const [archiving, setArchiving] = useState(false);
+  const [unarchiving, setUnarchiving] = useState(false);
   const [photoIndex, setPhotoIndex] = useState(0);
   const pricePerMeter = property.pricePerMeter || (property.squareMeters > 0 ? Math.round(property.price / property.squareMeters) : 0);
   const displaySize = property.builtSquareMeters || property.squareMeters;
@@ -55,6 +59,27 @@ export function PropertyCard({ property, selected, onSelect, selectable, onArchi
       setArchiving(true);
       await onArchive(property.id);
     }
+  };
+
+  const handleUnarchive = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (onUnarchive) {
+      setUnarchiving(true);
+      await onUnarchive(property.id);
+    }
+  };
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onDelete?.(property.id);
+  };
+
+  const handleManagePhotos = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    navigate(`/property/${property.id}`, { state: { openPhotos: true } });
   };
 
   const handleImageClick = (e: React.MouseEvent) => {
@@ -166,16 +191,49 @@ export function PropertyCard({ property, selected, onSelect, selectable, onArchi
             {evaluation.score}%
           </div>
 
-          {/* Days published */}
-          {property.daysPublished > 0 && (
-            <span className="absolute top-3 right-3 px-2 py-0.5 rounded text-xs bg-black/60 text-white">
-              {property.daysPublished}d
-            </span>
-          )}
+          {/* Top-right stack: days published + photo counter */}
+          <div className="absolute top-3 right-3 flex flex-col items-end gap-1">
+            {property.daysPublished > 0 && (
+              <span className="px-2 py-0.5 rounded text-xs bg-black/60 text-white">
+                {property.daysPublished}d
+              </span>
+            )}
+            {hasMultiplePhotos && (
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-black/60 text-white tabular-nums">
+                {photoIndex + 1}/{photos.length}
+              </span>
+            )}
+          </div>
 
-          {/* Archive button */}
-          {onArchive && (
-            <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+          {/* Manage photos / Archive / Unarchive / Delete buttons */}
+          <div className="absolute bottom-3 right-3 flex items-center gap-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+            <button
+              onClick={handleManagePhotos}
+              className="p-2 bg-white/90 hover:bg-[var(--color-text)] hover:text-white text-[var(--color-text-secondary)] rounded-md shadow-md transition-colors"
+              title="Gestionar fotos"
+            >
+              <Images size={16} />
+            </button>
+            {onUnarchive && (
+              <button
+                onClick={handleUnarchive}
+                disabled={unarchiving}
+                className="p-2 bg-white/90 hover:bg-[var(--color-visited)] hover:text-[var(--color-visited-text)] text-[var(--color-text-secondary)] rounded-md shadow-md transition-colors disabled:opacity-50"
+                title="Desarchivar"
+              >
+                <ArchiveRestore size={16} />
+              </button>
+            )}
+            {onDelete && (
+              <button
+                onClick={handleDelete}
+                className="p-2 bg-white/90 hover:bg-[var(--color-discarded)] hover:text-[var(--color-discarded-text)] text-[var(--color-text-secondary)] rounded-md shadow-md transition-colors"
+                title="Eliminar definitivamente"
+              >
+                <Trash2 size={16} />
+              </button>
+            )}
+            {onArchive && !onUnarchive && !onDelete && (
               <button
                 onClick={handleArchive}
                 disabled={archiving}
@@ -184,8 +242,8 @@ export function PropertyCard({ property, selected, onSelect, selectable, onArchi
               >
                 <Archive size={16} />
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </Link>
 

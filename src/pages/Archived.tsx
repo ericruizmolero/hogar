@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Archive, ArchiveRestore, Trash2, MapPin, Maximize, BedDouble } from 'lucide-react';
 import { useProperties } from '../hooks/useProperties';
 import { formatPrice, getImageUrl } from '../lib/utils';
+import { useSwipe } from '../hooks/useSwipe';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
-import { STATUS_LABELS } from '../types';
+import { STATUS_LABELS, type Property } from '../types';
 
 const STATUS_STYLES: Record<string, string> = {
   pending: 'bg-[var(--color-pending)] text-[var(--color-pending-text)]',
@@ -64,82 +65,15 @@ export function Archived() {
           </p>
         </div>
       ) : (
-        <div className="space-y-2">
-          {archivedProperties.map((property) => {
-            const displaySize = property.builtSquareMeters || property.squareMeters;
-            return (
-              <div
-                key={property.id}
-                className="group flex items-center gap-4 p-3 rounded-lg border border-[var(--color-border)] hover:bg-[var(--color-bg-hover)] transition-colors"
-              >
-                {/* Thumbnail */}
-                <Link to={`/property/${property.id}`} className="flex-shrink-0">
-                  <div className="w-16 h-16 rounded-md overflow-hidden bg-[var(--color-bg-secondary)]">
-                    {property.photos?.[0] ? (
-                      <img
-                        src={getImageUrl(property.photos[0])}
-                        alt={property.address}
-                        className="w-full h-full object-cover"
-                        referrerPolicy="no-referrer"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-lg opacity-20">🏠</div>
-                    )}
-                  </div>
-                </Link>
-
-                {/* Info */}
-                <Link to={`/property/${property.id}`} className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span
-                      className="text-base font-medium text-[var(--color-text)]"
-                      style={{ fontFamily: 'var(--font-serif)' }}
-                    >
-                      {formatPrice(property.price)}
-                    </span>
-                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${STATUS_STYLES[property.status]}`}>
-                      {STATUS_LABELS[property.status]}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1 text-sm text-[var(--color-text-secondary)] truncate">
-                    <MapPin size={12} strokeWidth={1.5} className="flex-shrink-0" />
-                    <span className="truncate">{property.zone || property.address}</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-xs text-[var(--color-text-tertiary)] mt-0.5">
-                    {displaySize > 0 && (
-                      <span className="flex items-center gap-1">
-                        <Maximize size={10} /> {displaySize} m²
-                      </span>
-                    )}
-                    {property.rooms > 0 && (
-                      <span className="flex items-center gap-1">
-                        <BedDouble size={10} /> {property.rooms} hab
-                      </span>
-                    )}
-                  </div>
-                </Link>
-
-                {/* Actions */}
-                <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
-                    onClick={() => unarchiveProperty(property.id)}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-md bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-visited)] hover:text-[var(--color-visited-text)] transition-colors"
-                    title="Desarchivar"
-                  >
-                    <ArchiveRestore size={14} />
-                    Restaurar
-                  </button>
-                  <button
-                    onClick={() => setDeleteId(property.id)}
-                    className="p-1.5 text-[var(--color-text-tertiary)] hover:text-[var(--color-discarded-text)] hover:bg-[var(--color-discarded)] rounded-md transition-colors"
-                    title="Eliminar definitivamente"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+        <div className="space-y-3">
+          {archivedProperties.map((property) => (
+            <ArchivedRow
+              key={property.id}
+              property={property}
+              onUnarchive={() => unarchiveProperty(property.id)}
+              onDelete={() => setDeleteId(property.id)}
+            />
+          ))}
         </div>
       )}
 
@@ -157,6 +91,153 @@ export function Archived() {
           </Button>
         </div>
       </Modal>
+    </div>
+  );
+}
+
+function ArchivedRow({
+  property,
+  onUnarchive,
+  onDelete,
+}: {
+  property: Property;
+  onUnarchive: () => void;
+  onDelete: () => void;
+}) {
+  const [photoIndex, setPhotoIndex] = useState(0);
+  const photos = property.photos || [];
+  const hasMultiplePhotos = photos.length > 1;
+  const displaySize = property.builtSquareMeters || property.squareMeters;
+
+  const goNext = useCallback(() => {
+    setPhotoIndex((i) => (i >= photos.length - 1 ? 0 : i + 1));
+  }, [photos.length]);
+
+  const goPrev = useCallback(() => {
+    setPhotoIndex((i) => (i <= 0 ? photos.length - 1 : i - 1));
+  }, [photos.length]);
+
+  const swipe = useSwipe(goNext, goPrev);
+
+  const handleImageClick = (e: React.MouseEvent) => {
+    if (swipe.isSwiping()) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  };
+
+  return (
+    <div className="group flex items-stretch gap-3 sm:gap-4 p-2 sm:p-3 rounded-lg border border-[var(--color-border)] hover:bg-[var(--color-bg-hover)] transition-colors">
+      {/* Swipeable photo */}
+      <Link
+        to={`/property/${property.id}`}
+        className="flex-shrink-0 block"
+        onClick={handleImageClick}
+      >
+        <div
+          className="relative w-32 sm:w-40 aspect-[4/3] rounded-md overflow-hidden bg-[var(--color-bg-secondary)] select-none"
+          {...(hasMultiplePhotos ? {
+            onTouchStart: swipe.onTouchStart,
+            onTouchMove: swipe.onTouchMove,
+            onTouchEnd: swipe.onTouchEnd,
+            onMouseDown: swipe.onMouseDown,
+            onMouseMove: swipe.onMouseMove,
+            onMouseUp: swipe.onMouseUp,
+            onMouseLeave: swipe.onMouseLeave,
+          } : {})}
+        >
+          {photos.length > 0 ? (
+            <img
+              src={getImageUrl(photos[photoIndex])}
+              alt={property.address}
+              className="w-full h-full object-cover pointer-events-none"
+              loading="lazy"
+              decoding="async"
+              referrerPolicy="no-referrer"
+              draggable={false}
+              onError={(e) => {
+                const el = e.target as HTMLImageElement;
+                if (!el.dataset.retried) {
+                  el.dataset.retried = '1';
+                  el.src = el.src + (el.src.includes('?') ? '&' : '?') + 'r=1';
+                } else {
+                  el.style.display = 'none';
+                }
+              }}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-2xl opacity-20">🏠</div>
+          )}
+
+          {hasMultiplePhotos && (
+            <>
+              <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex gap-[3px]">
+                {photos.slice(0, 5).map((_, i) => (
+                  <div
+                    key={i}
+                    className={`rounded-full transition-all duration-200 ${
+                      i === photoIndex ? 'w-1 h-1 bg-white' : 'w-1 h-1 bg-white/35'
+                    }`}
+                  />
+                ))}
+              </div>
+              <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-black/60 text-white tabular-nums">
+                {photoIndex + 1}/{photos.length}
+              </span>
+            </>
+          )}
+        </div>
+      </Link>
+
+      {/* Info */}
+      <Link to={`/property/${property.id}`} className="flex-1 min-w-0 flex flex-col justify-center">
+        <div className="flex items-center gap-2 mb-1 flex-wrap">
+          <span
+            className="text-base sm:text-lg font-medium text-[var(--color-text)]"
+            style={{ fontFamily: 'var(--font-serif)' }}
+          >
+            {formatPrice(property.price)}
+          </span>
+          <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${STATUS_STYLES[property.status]}`}>
+            {STATUS_LABELS[property.status]}
+          </span>
+        </div>
+        <div className="flex items-center gap-1 text-sm text-[var(--color-text-secondary)] truncate mb-1">
+          <MapPin size={12} strokeWidth={1.5} className="flex-shrink-0" />
+          <span className="truncate">{property.zone || property.address}</span>
+        </div>
+        <div className="flex items-center gap-3 text-xs text-[var(--color-text-tertiary)]">
+          {displaySize > 0 && (
+            <span className="flex items-center gap-1">
+              <Maximize size={10} /> {displaySize} m²
+            </span>
+          )}
+          {property.rooms > 0 && (
+            <span className="flex items-center gap-1">
+              <BedDouble size={10} /> {property.rooms} hab
+            </span>
+          )}
+        </div>
+      </Link>
+
+      {/* Actions */}
+      <div className="flex flex-col sm:flex-row items-center gap-1 flex-shrink-0 self-center sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+        <button
+          onClick={onUnarchive}
+          className="flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-md bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-visited)] hover:text-[var(--color-visited-text)] transition-colors"
+          title="Desarchivar"
+        >
+          <ArchiveRestore size={14} />
+          <span className="hidden sm:inline">Restaurar</span>
+        </button>
+        <button
+          onClick={onDelete}
+          className="p-1.5 text-[var(--color-text-tertiary)] hover:text-[var(--color-discarded-text)] hover:bg-[var(--color-discarded)] rounded-md transition-colors"
+          title="Eliminar definitivamente"
+        >
+          <Trash2 size={14} />
+        </button>
+      </div>
     </div>
   );
 }

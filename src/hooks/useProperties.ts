@@ -127,6 +127,7 @@ export function useProperties() {
   return {
     properties,
     archivedProperties,
+    allProperties,
     loading,
     addProperty,
     updateProperty,
