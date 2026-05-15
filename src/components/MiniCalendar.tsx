@@ -7,6 +7,7 @@ import {
   Plus,
   Trash2,
   Calendar,
+  Pencil,
 } from 'lucide-react';
 import { useVisits } from '../hooks/useVisits';
 import { useProperties } from '../hooks/useProperties';
@@ -84,7 +85,7 @@ function getCalendarDays(year: number, month: number) {
 }
 
 export function MiniCalendar() {
-  const { visits, loading, addVisit, deleteVisit } = useVisits();
+  const { visits, loading, addVisit, updateVisit, deleteVisit } = useVisits();
   const { properties } = useProperties();
 
   const today = new Date();
@@ -93,6 +94,7 @@ export function MiniCalendar() {
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingVisit, setEditingVisit] = useState<Visit | null>(null);
   const [formData, setFormData] = useState({ propertyId: '', notes: '' });
   const [pickYear, setPickYear] = useState(today.getFullYear());
   const [pickMonth, setPickMonth] = useState(today.getMonth());
@@ -169,6 +171,7 @@ export function MiniCalendar() {
 
   const openAddForm = (prefilledDate?: Date) => {
     const d = prefilledDate || selectedDate || new Date();
+    setEditingVisit(null);
     setPickYear(d.getFullYear());
     setPickMonth(d.getMonth());
     setPickDay(d.getDate());
@@ -178,17 +181,37 @@ export function MiniCalendar() {
     setShowAddForm(true);
   };
 
+  const openEditForm = (visit: Visit) => {
+    setEditingVisit(visit);
+    setPickYear(visit.date.getFullYear());
+    setPickMonth(visit.date.getMonth());
+    setPickDay(visit.date.getDate());
+    setPickHour(visit.date.getHours());
+    setPickMinute(visit.date.getMinutes());
+    setFormData({ propertyId: visit.propertyId, notes: visit.notes });
+    setShowAddForm(true);
+  };
+
   const canSubmit = formData.propertyId && pickDay !== null && pickHour !== null && pickMinute !== null;
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
     const visitDate = new Date(pickYear, pickMonth, pickDay!, pickHour!, pickMinute!);
 
-    await addVisit({
-      propertyId: formData.propertyId,
-      date: visitDate,
-      notes: formData.notes,
-    });
+    if (editingVisit) {
+      await updateVisit(editingVisit.id, {
+        propertyId: formData.propertyId,
+        date: visitDate,
+        notes: formData.notes,
+      });
+      setEditingVisit(null);
+    } else {
+      await addVisit({
+        propertyId: formData.propertyId,
+        date: visitDate,
+        notes: formData.notes,
+      });
+    }
 
     setShowAddForm(false);
   };
@@ -362,6 +385,7 @@ export function MiniCalendar() {
                           visit={visit}
                           property={getPropertyInfo(visit.propertyId)}
                           onDelete={deleteVisit}
+                          onEdit={openEditForm}
                         />
                       ))}
                     </div>
@@ -384,6 +408,7 @@ export function MiniCalendar() {
                           visit={visit}
                           property={getPropertyInfo(visit.propertyId)}
                           onDelete={deleteVisit}
+                          onEdit={openEditForm}
                           showDate
                         />
                       ))}
@@ -396,8 +421,8 @@ export function MiniCalendar() {
         </div>
       )}
 
-      {/* Add visit modal */}
-      <Modal isOpen={showAddForm} onClose={() => setShowAddForm(false)} title="Nueva visita">
+      {/* Add/edit visit modal */}
+      <Modal isOpen={showAddForm} onClose={() => { setShowAddForm(false); setEditingVisit(null); }} title={editingVisit ? 'Editar visita' : 'Nueva visita'}>
         <div className="space-y-5">
           {/* Property selector */}
           <div className="flex flex-col gap-1.5">
@@ -440,7 +465,7 @@ export function MiniCalendar() {
                 {pickDays.map(({ date: d, currentMonth: cur }, idx) => {
                   const isPickToday = isSameDay(d, today);
                   const isPicked = pickDay === d.getDate() && cur;
-                  const isPast = d < new Date(today.getFullYear(), today.getMonth(), today.getDate()) && cur;
+                  const isPast = !editingVisit && d < new Date(today.getFullYear(), today.getMonth(), today.getDate()) && cur;
                   return (
                     <button
                       key={idx}
@@ -531,7 +556,7 @@ export function MiniCalendar() {
                 Cancelar
               </Button>
               <Button onClick={handleSubmit} disabled={!canSubmit}>
-                Crear
+                {editingVisit ? 'Guardar' : 'Crear'}
               </Button>
             </div>
           </div>
@@ -548,11 +573,13 @@ function VisitItem({
   visit,
   property,
   onDelete,
+  onEdit,
   showDate,
 }: {
   visit: Visit;
   property?: Property;
   onDelete: (id: string) => Promise<void>;
+  onEdit: (visit: Visit) => void;
   showDate?: boolean;
 }) {
   const [confirming, setConfirming] = useState(false);
@@ -605,7 +632,7 @@ function VisitItem({
           )}
         </div>
         <div
-          className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+          className="flex-shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
           onClick={(e) => e.preventDefault()}
         >
           {confirming ? (
@@ -624,13 +651,22 @@ function VisitItem({
               </button>
             </div>
           ) : (
-            <button
-              onClick={handleDelete}
-              className="p-0.5 text-[var(--color-text-tertiary)] hover:text-[var(--color-discarded-text)] transition-colors"
-              title="Eliminar visita"
-            >
-              <Trash2 size={12} />
-            </button>
+            <>
+              <button
+                onClick={(e) => { e.preventDefault(); onEdit(visit); }}
+                className="p-0.5 text-[var(--color-text-tertiary)] hover:text-[var(--color-accent)] transition-colors"
+                title="Editar visita"
+              >
+                <Pencil size={12} />
+              </button>
+              <button
+                onClick={handleDelete}
+                className="p-0.5 text-[var(--color-text-tertiary)] hover:text-[var(--color-discarded-text)] transition-colors"
+                title="Eliminar visita"
+              >
+                <Trash2 size={12} />
+              </button>
+            </>
           )}
         </div>
       </div>
